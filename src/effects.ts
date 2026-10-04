@@ -1,5 +1,5 @@
 // Zero-dependency visual effects: CRT overlay, background vibration waveform,
-// decoded-text reveal, and the "soft spot" easter egg.
+// and decoded-text reveal.
 
 export type Decoded = { reading: string; text: string; note: string };
 
@@ -24,7 +24,7 @@ function makeNoiseTile(size = 96): string {
 
 /* ---------------- 2) background waveform ---------------- */
 
-type Mode = "idle" | "decoding" | "flat" | "jam" | "soft";
+type Mode = "idle" | "decoding" | "flat" | "jam";
 
 const wave = {
   canvas: null as HTMLCanvasElement | null,
@@ -73,7 +73,6 @@ function drawWave(dt: number) {
   if (wave.mode === "decoding") { targetAmp = 0.12; speed = 3.2; jitter = 0.05; }
   if (wave.mode === "flat") { targetAmp = 0; jitter = 0; speed = 0.4; }
   if (wave.mode === "jam") { targetAmp = 0.05; jitter = 0.22; speed = 6; }
-  if (wave.mode === "soft") { targetAmp = 0.05; jitter = 0; speed = 0.45; wave.freqTarget = 0.6; }
   wave.amp += (targetAmp - wave.amp) * (1 - Math.exp(-k * 1.3));
   wave.freq += (wave.freqTarget - wave.freq) * (1 - Math.exp(-k * 1.5));
   wave.t += k * speed;
@@ -158,7 +157,6 @@ export function pulse(d: Decoded, flat: boolean) {
     wave.jitter = Math.max(0.005, (100 - r.conf) / 1500);
     setTimeout(() => { wave.freqTarget = 1; wave.jitter = 0.02; }, 2600);
   }
-  if (soft.until > now) wave.mode = "soft";
   if (reduced()) { drawWave(16); setTimeout(() => drawWave(16), 3600); }
 }
 
@@ -197,50 +195,6 @@ export function reveal(el: HTMLElement) {
   requestAnimationFrame(tick);
 }
 
-/* ---------------- 4) soft-spot easter egg ---------------- */
-
-const SOFT_RE =
-  /曲奇|饼干|cookie|biscuit|小动物|小猫|猫|小狗|狗|兔|鸟|仓鼠|松鼠|刺猬|鸭|小鸡|小羊|\b(?:kitten|kitty|cats?|puppy|puppies|dogs?|bunny|rabbits?|hamsters?|birds?)\b/i;
-
-export function mentionsSoftSpot(text: string) {
-  return SOFT_RE.test(text);
-}
-
-const soft = { until: 0, timer: 0 as number | undefined, layer: null as HTMLDivElement | null };
-
-export function soften(kind: "cookie" | "animal" | "auto" = "auto", text = "") {
-  const k = kind === "auto" ? (/曲奇|饼干|cookie|biscuit/i.test(text) ? "cookie" : "animal") : kind;
-  const ms = 6000;
-  soft.until = performance.now() + ms;
-  document.body.classList.add("soft");
-  wave.mode = "soft";
-  wave.color = "255,196,140";
-  window.clearTimeout(soft.timer);
-  soft.timer = window.setTimeout(unsoften, ms);
-  if (reduced() || !soft.layer) { drawWave(16); return; }
-  soft.layer.replaceChildren();
-  const n = window.innerWidth < 600 ? 7 : 11;
-  for (let i = 0; i < n; i++) {
-    const s = document.createElement("span");
-    s.className = "crumb";
-    s.textContent = k === "cookie" ? (i % 3 ? "·" : "🍪") : "🐾";
-    s.style.left = `${5 + Math.random() * 90}%`;
-    s.style.animationDelay = `${Math.random() * 2.5}s`;
-    s.style.animationDuration = `${4 + Math.random() * 2.5}s`;
-    s.style.fontSize = `${k === "cookie" && i % 3 ? 22 : 13 + Math.random() * 8}px`;
-    soft.layer.appendChild(s);
-  }
-}
-
-function unsoften() {
-  document.body.classList.remove("soft");
-  if (wave.mode === "soft") wave.mode = "idle";
-  wave.freqTarget = 1;
-  wave.color = "214,255,58";
-  soft.layer?.replaceChildren();
-  if (reduced()) drawWave(16);
-}
-
 /* ---------------- setup (once, outside #app so render() never touches it) ---------------- */
 
 export function initEffects() {
@@ -252,18 +206,11 @@ export function initEffects() {
   crt.setAttribute("aria-hidden", "true");
   const noise = makeNoiseTile();
   if (noise) crt.style.setProperty("--noise", `url(${noise})`);
-  const tint = document.createElement("div");
-  tint.className = "soft-tint";
-  tint.setAttribute("aria-hidden", "true");
-  const layer = document.createElement("div");
-  layer.className = "crumbs";
-  layer.setAttribute("aria-hidden", "true");
   document.body.prepend(bg);
-  document.body.append(tint, layer, crt);
+  document.body.append(crt);
 
   wave.canvas = bg;
   wave.ctx = bg.getContext("2d");
-  soft.layer = layer;
   resize();
   window.addEventListener("resize", resize, { passive: true });
   document.addEventListener("visibilitychange", () => (document.hidden ? stop() : start()));

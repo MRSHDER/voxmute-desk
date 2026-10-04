@@ -1,5 +1,5 @@
 import "./style.css";
-import { initEffects, mentionsSoftSpot, pulse, reveal, setDecoding, soften } from "./effects";
+import { initEffects, pulse, reveal, setDecoding } from "./effects";
 
 type Role = "user" | "subject" | "system";
 
@@ -309,7 +309,6 @@ function render() {
     const box = active();
     box.messages.push({ id: id(), role: "user", text, at: stamp() });
     pending = box.id;
-    if (mentionsSoftSpot(text)) soften("auto", text);
     setDecoding(true);
     save();
     render();
@@ -320,7 +319,6 @@ function render() {
       if (current === box.id) freshId = msg.id;
       setDecoding(false);
       pulse(d, isFlat(d));
-      if (mentionsSoftSpot(d.text)) soften("auto", d.text);
     } finally {
       setDecoding(false);
       pending = null;

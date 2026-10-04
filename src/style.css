@@ -266,8 +266,6 @@ button.send:disabled { opacity: 0.55; cursor: wait; }
   inset: 0;
   z-index: 50;
   pointer-events: none;
-  opacity: 1;
-  transition: opacity 1.2s ease;
 }
 .crt::before {
   content: "";
@@ -307,44 +305,9 @@ button.send:disabled { opacity: 0.55; cursor: wait; }
   100% { transform: translate(-1px, 0) skewX(3deg); }
 }
 
-/* soft-spot easter egg */
-.soft-tint {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  pointer-events: none;
-  background: radial-gradient(ellipse at 50% 60%, rgba(255, 186, 120, 0.16), rgba(255, 150, 110, 0.06) 60%, transparent 85%);
-  opacity: 0;
-  transition: opacity 1.2s ease;
-}
-body.soft .soft-tint { opacity: 1; }
-body.soft .crt { opacity: 0.25; }
-body.soft {
-  --acid: #ffc98a;
-}
-body.soft .msg.subject .bubble { border-left-color: #ffc98a; transition: border-color 1s ease; }
-body.soft .decoded.lowconf { animation-duration: 6s; }
-.crumbs { position: fixed; inset: 0; z-index: 45; pointer-events: none; overflow: hidden; }
-.crumb {
-  position: absolute;
-  bottom: -30px;
-  color: #ffcf9a;
-  opacity: 0;
-  animation: crumbFloat 5s ease-in-out forwards;
-  will-change: transform, opacity;
-}
-@keyframes crumbFloat {
-  0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
-  15% { opacity: 0.35; }
-  80% { opacity: 0.25; }
-  100% { transform: translate(18px, -70vh) rotate(25deg); opacity: 0; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .crt::after { animation: none; }
   .decoded.glitch-in { animation: none; }
-  .crumbs { display: none; }
-  .soft-tint, .crt { transition: none; }
 }
 
 /* night-shift handover notice (static, not stored, not sent to the model) */
