@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>VoxMute Signal Desk</title>
+  <rect x="1.5" y="1.5" width="61" height="61" fill="#070808" stroke="#d6ff3a" stroke-width="3"/>
+  <g transform="translate(10.686 44.737) scale(0.03650)" fill="#d6ff3a" stroke="#d6ff3a" stroke-width="20.6" stroke-linejoin="round">
+    <path d="M243 0 36 -698H125L224 -349L299 -85H304L379 -349L478 -698H564L357 0Z"/><path d="M1055 -350V-571H1047L900 -212L753 -571H745V-350V0H668V-698H776L899 -390H905L1028 -698H1132V0H1055Z"/>
+  </g>
+</svg>
