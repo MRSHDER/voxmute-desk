@@ -221,7 +221,15 @@ button.send {
   opacity: 0.75;
   margin-bottom: 6px;
 }
-.decoded { font-size: 15px; white-space: pre-wrap; }
+.decoded { font-size: 15px; white-space: pre-line; line-height: 1.6; }
+.decoded .ln { display: block; }
+.decoded .ln.gap { height: 0.7em; }
+.decoded .ln.status {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--mute);
+}
 .decoded.lowconf { animation: lowconf 2.6s steps(1, end) infinite; filter: blur(0.6px); opacity: 0.8; }
 @keyframes lowconf {
   0%, 100% { filter: blur(0.6px); opacity: 0.8; transform: none; }

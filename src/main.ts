@@ -123,9 +123,8 @@ function rand(min: number, max: number) {
 
 // Local fallback: run replyTo() through the same decoder shape, with a low-confidence reading.
 function localDecode(input: string, note: string): Decoded {
-  const lines = replyTo(input);
-  const zh = lines.filter((l) => /[\u4e00-\u9fff]/.test(l));
-  const text = (zh[zh.length - 1] ?? lines[lines.length - 1] ?? "…").slice(0, 16);
+  // replyTo() gives an optional English status + short Chinese lines; render them as segments
+  const text = replyTo(input).join("\n\n");
   return {
     reading: `FREQ ${rand(30, 110)}Hz · AMP LOW · CONF ${rand(28, 55)}%`,
     text,
@@ -176,6 +175,20 @@ function isFlat(d: Decoded): boolean {
   return !t || (/^[.…。·\s]+$/.test(t) && /无震动/.test(d.note));
 }
 
+// English status lines (VOICE FUNCTION SEVERED, CAM-14 / RESIDUAL …) render dimmer + monospace.
+const STATUS_RE = /^(?=.*[A-Z])[A-Z0-9][A-Z0-9 /·._:\-–—#%]*$/;
+
+function segmentLines(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => {
+      const t = line.trim();
+      if (!t) return `<span class="ln gap"></span>`;
+      return `<span class="ln${STATUS_RE.test(t) ? " status" : ""}">${escapeHtml(t)}</span>`;
+    })
+    .join("");
+}
+
 function renderDecoded(d: Decoded): string {
   const conf = confOf(d.reading);
   const flat = isFlat(d);
@@ -185,7 +198,7 @@ function renderDecoded(d: Decoded): string {
     : "";
   const body = flat
     ? `<div class="flatline" aria-label="无震动"><span></span></div>`
-    : `<div class="decoded ${low ? "lowconf" : ""}">${escapeHtml(d.text)}</div>`;
+    : `<div class="decoded ${low ? "lowconf" : ""}">${segmentLines(d.text)}</div>`;
   const note = d.note ? `<div class="dnote">${escapeHtml(d.note)}</div>` : "";
   return `<div class="bubble decoder ${flat ? "flat" : ""}">${reading}${body}${note}</div>`;
 }
