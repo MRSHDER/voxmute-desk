@@ -1,6 +1,6 @@
 # VoxMute Desk
 
-TXC 信号台聊天前端。对象是 VoxMute / 折声。本地假回复，不接模型，没有后端。
+TXC 信号台聊天前端。对象是 VoxMute / 折声。回复经 Vercel 代理（`voxmute-proxy`）调用模型；代理不可用时退回本地假回复。
 
 折声不说话。界面把操作员输入记成观察，回的是载波、状态和短句，不是对话模型。
 
@@ -12,6 +12,12 @@ npm run dev
 ```
 
 浏览器打开 Vite 给的本地地址。会话存在 `localStorage`，刷新还在。
+
+## 模型代理
+
+- 默认代理地址写在 `src/main.ts` 的 `DEFAULT_API`（公开地址，不是密钥）。
+- 本地可用 `.env.local` 设 `VITE_API_URL` 覆盖；设为空字符串则只用本地假回复。
+- 模型 API Key 只存在于 Vercel 环境变量，前端和本仓库里都没有。
 
 ## 画面
 

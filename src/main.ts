@@ -18,6 +18,11 @@ type Session = {
 
 const KEY = "voxmute-desk-v1";
 
+// Proxy URL is public (the model key lives only in Vercel env vars). VITE_API_URL overrides it.
+const DEFAULT_API = "https://voxmute-proxy.vercel.app/api/chat";
+const API: string = import.meta.env.VITE_API_URL ?? DEFAULT_API;
+let pending = false;
+
 const seed = (): Session[] => [
   {
     id: "hold-a",
@@ -107,6 +112,26 @@ function replyTo(input: string): string[] {
   return [pool[input.length % pool.length]];
 }
 
+async function fetchReply(history: Msg[]): Promise<string[]> {
+  const lastText = history[history.length - 1]?.text ?? "";
+  if (!API) return replyTo(lastText);
+  try {
+    const res = await fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: history.slice(-12).map(({ role, text }) => ({ role, text })),
+      }),
+    });
+    if (res.status === 429) return ["CARRIER SATURATED", "等一会儿。"];
+    if (!res.ok) throw new Error(String(res.status));
+    const data = (await res.json()) as { lines?: string[] };
+    return data.lines?.length ? data.lines : replyTo(lastText);
+  } catch {
+    return ["LINK DROPPED", ...replyTo(lastText)];
+  }
+}
+
 function drawTrace(canvas: HTMLCanvasElement, seedN: number) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -156,7 +181,7 @@ function render() {
         <div class="flags">
           <span class="flag warn">VOICE NULL</span>
           <span class="flag on">CARRIER ON</span>
-          <span class="flag">LOCAL ONLY</span>
+          <span class="flag ${API ? "on" : ""}">${API ? "LINK ON" : "LOCAL ONLY"}</span>
         </div>
       </header>
       <div id="log">
@@ -174,8 +199,8 @@ function render() {
       </div>
       <form id="composer">
         <textarea id="draft" placeholder="写入观察。对方不会回话，只会回信号。"></textarea>
-        <button class="send" type="submit">SEND</button>
-        <div class="note">Enter 发送 · Shift+Enter 换行 · 回复写在本地，不接模型</div>
+        <button class="send" type="submit" ${pending ? "disabled" : ""}>${pending ? "RECV…" : "SEND"}</button>
+        <div class="note">Enter 发送 · Shift+Enter 换行 · ${API ? "回复经信号代理回传" : "回复写在本地，不接模型"}</div>
       </form>
     </main>
   `;
@@ -209,15 +234,24 @@ function render() {
       form.requestSubmit();
     }
   });
-  form.onsubmit = (e) => {
+  form.onsubmit = async (e) => {
     e.preventDefault();
+    if (pending) return;
     const text = draft.value.trim();
     if (!text) return;
     const box = active();
     box.messages.push({ id: id(), role: "user", text, at: stamp() });
-    for (const line of replyTo(text)) box.messages.push(subject(line));
+    pending = true;
     save();
     render();
+    try {
+      const lines = await fetchReply(box.messages);
+      for (const line of lines) box.messages.push(subject(line));
+    } finally {
+      pending = false;
+      save();
+      render();
+    }
   };
 
   app.querySelectorAll<HTMLCanvasElement>(".trace").forEach((canvas, i) => {
