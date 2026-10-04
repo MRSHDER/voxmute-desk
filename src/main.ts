@@ -1,4 +1,5 @@
 import "./style.css";
+import { initEffects, mentionsSoftSpot, pulse, reveal, setDecoding, soften } from "./effects";
 
 type Role = "user" | "subject" | "system";
 
@@ -25,6 +26,7 @@ const KEY = "voxmute-desk-v1";
 const DEFAULT_API = "https://voxmute-proxy.vercel.app/api/chat";
 const API: string = import.meta.env.VITE_API_URL ?? DEFAULT_API;
 let pending: string | null = null; // id of the session waiting for a decode
+let freshId: string | null = null; // newest subject reply; only this one gets the reveal animation
 
 const seed = (): Session[] => [
   {
@@ -245,7 +247,7 @@ function render() {
           .map((m) => {
             const label = m.role === "user" ? "OPERATOR" : m.role === "subject" ? "SUBJECT" : "DESK";
             return `
-            <article class="msg ${m.role}">
+            <article class="msg ${m.role}"${m.id === freshId ? " data-fresh" : ""}>
               <div class="meta">${label} ${m.at}</div>
               ${m.decoded ? renderDecoded(m.decoded) : `<div class="bubble">${escapeHtml(m.text)}</div>`}
               ${m.role === "subject" && !(m.decoded && isFlat(m.decoded)) ? `<canvas class="trace" data-seed="${m.id.length}"></canvas>` : ""}
@@ -306,11 +308,20 @@ function render() {
     const box = active();
     box.messages.push({ id: id(), role: "user", text, at: stamp() });
     pending = box.id;
+    if (mentionsSoftSpot(text)) soften("auto", text);
+    setDecoding(true);
     save();
     render();
     try {
-      box.messages.push(subjectDecoded(await fetchReply(box.messages)));
+      const d = await fetchReply(box.messages);
+      const msg = subjectDecoded(d);
+      box.messages.push(msg);
+      if (current === box.id) freshId = msg.id;
+      setDecoding(false);
+      pulse(d, isFlat(d));
+      if (mentionsSoftSpot(d.text)) soften("auto", d.text);
     } finally {
+      setDecoding(false);
       pending = null;
       save();
       render();
@@ -320,6 +331,12 @@ function render() {
   app.querySelectorAll<HTMLCanvasElement>(".trace").forEach((canvas, i) => {
     drawTrace(canvas, i + 3);
   });
+
+  if (freshId) {
+    const el = app.querySelector<HTMLElement>("[data-fresh] .decoded");
+    if (el) reveal(el);
+    freshId = null; // later re-renders show the final text statically
+  }
 
   const log = app.querySelector<HTMLDivElement>("#log")!;
   log.scrollTop = log.scrollHeight;
@@ -333,4 +350,5 @@ function escapeHtml(text: string) {
     .replaceAll(">", "&gt;");
 }
 
+initEffects();
 render();
