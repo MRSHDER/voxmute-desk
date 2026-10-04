@@ -243,6 +243,7 @@ function render() {
         </div>
       </header>
       <div id="log">
+        <div class="handover" role="note">[夜班交接 · 上一位操作员：失联]</div>
         ${s.messages
           .map((m) => {
             const label = m.role === "user" ? "OPERATOR" : m.role === "subject" ? "SUBJECT" : "DESK";

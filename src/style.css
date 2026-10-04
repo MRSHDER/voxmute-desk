@@ -346,3 +346,13 @@ body.soft .decoded.lowconf { animation-duration: 6s; }
   .crumbs { display: none; }
   .soft-tint, .crt { transition: none; }
 }
+
+/* night-shift handover notice (static, not stored, not sent to the model) */
+.handover {
+  align-self: center;
+  color: var(--dim);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  padding: 2px 0 6px;
+  opacity: 0.85;
+}
