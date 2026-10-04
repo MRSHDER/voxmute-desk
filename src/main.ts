@@ -2,11 +2,14 @@ import "./style.css";
 
 type Role = "user" | "subject" | "system";
 
+type Decoded = { reading: string; text: string; note: string };
+
 type Msg = {
   id: string;
   role: Role;
   text: string;
   at: string;
+  decoded?: Decoded;
 };
 
 type Session = {
@@ -21,7 +24,7 @@ const KEY = "voxmute-desk-v1";
 // Proxy URL is public (the model key lives only in Vercel env vars). VITE_API_URL overrides it.
 const DEFAULT_API = "https://voxmute-proxy.vercel.app/api/chat";
 const API: string = import.meta.env.VITE_API_URL ?? DEFAULT_API;
-let pending = false;
+let pending: string | null = null; // id of the session waiting for a decode
 
 const seed = (): Session[] => [
   {
@@ -112,24 +115,77 @@ function replyTo(input: string): string[] {
   return [pool[input.length % pool.length]];
 }
 
-async function fetchReply(history: Msg[]): Promise<string[]> {
+function rand(min: number, max: number) {
+  return Math.floor(min + Math.random() * (max - min + 1));
+}
+
+// Local fallback: run replyTo() through the same decoder shape, with a low-confidence reading.
+function localDecode(input: string, note: string): Decoded {
+  const lines = replyTo(input);
+  const zh = lines.filter((l) => /[\u4e00-\u9fff]/.test(l));
+  const text = (zh[zh.length - 1] ?? lines[lines.length - 1] ?? "…").slice(0, 16);
+  return {
+    reading: `FREQ ${rand(30, 110)}Hz · AMP LOW · CONF ${rand(28, 55)}%`,
+    text,
+    note,
+  };
+}
+
+function decodedLines(d: Decoded) {
+  return [d.reading, d.text, d.note].filter(Boolean).join("\n");
+}
+
+function subjectDecoded(d: Decoded): Msg {
+  return { id: id(), role: "subject", text: decodedLines(d), at: stamp(), decoded: d };
+}
+
+async function fetchReply(history: Msg[]): Promise<Decoded> {
   const lastText = history[history.length - 1]?.text ?? "";
-  if (!API) return replyTo(lastText);
+  if (!API) return localDecode(lastText, "[离线·本地推测]");
   try {
     const res = await fetch(API, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        messages: history.slice(-12).map(({ role, text }) => ({ role, text })),
+        messages: history.slice(-12).map(({ role, text }) => ({ role, text: text.slice(0, 600) })),
       }),
     });
-    if (res.status === 429) return ["CARRIER SATURATED", "等一会儿。"];
+    if (res.status === 429) return localDecode(lastText, "[载波饱和·本地推测]");
     if (!res.ok) throw new Error(String(res.status));
-    const data = (await res.json()) as { lines?: string[] };
-    return data.lines?.length ? data.lines : replyTo(lastText);
+    const data = (await res.json()) as { decoded?: Partial<Decoded>; lines?: string[] };
+    const d = data.decoded;
+    if (d && (d.reading || d.text || d.note)) {
+      return { reading: d.reading ?? "", text: d.text ?? "", note: d.note ?? "" };
+    }
+    if (data.lines?.length) return { reading: "", text: data.lines.join(" "), note: "" };
+    return { reading: "", text: "", note: "[无震动]" };
   } catch {
-    return ["LINK DROPPED", ...replyTo(lastText)];
+    return localDecode(lastText, "[链路断开·本地推测]");
   }
+}
+
+function confOf(reading: string): number | null {
+  const m = /CONF\s*(\d{1,3})\s*%/i.exec(reading);
+  return m ? Number(m[1]) : null;
+}
+
+function isFlat(d: Decoded): boolean {
+  const t = d.text.trim();
+  return !t || (/^[.…。·\s]+$/.test(t) && /无震动/.test(d.note));
+}
+
+function renderDecoded(d: Decoded): string {
+  const conf = confOf(d.reading);
+  const flat = isFlat(d);
+  const low = conf !== null && conf < 60;
+  const reading = d.reading
+    ? `<div class="readout">${escapeHtml(d.reading)}</div>`
+    : "";
+  const body = flat
+    ? `<div class="flatline" aria-label="无震动"><span></span></div>`
+    : `<div class="decoded ${low ? "lowconf" : ""}">${escapeHtml(d.text)}</div>`;
+  const note = d.note ? `<div class="dnote">${escapeHtml(d.note)}</div>` : "";
+  return `<div class="bubble decoder ${flat ? "flat" : ""}">${reading}${body}${note}</div>`;
 }
 
 function drawTrace(canvas: HTMLCanvasElement, seedN: number) {
@@ -191,16 +247,24 @@ function render() {
             return `
             <article class="msg ${m.role}">
               <div class="meta">${label} ${m.at}</div>
-              <div class="bubble">${escapeHtml(m.text)}</div>
-              ${m.role === "subject" ? `<canvas class="trace" data-seed="${m.id.length}"></canvas>` : ""}
+              ${m.decoded ? renderDecoded(m.decoded) : `<div class="bubble">${escapeHtml(m.text)}</div>`}
+              ${m.role === "subject" && !(m.decoded && isFlat(m.decoded)) ? `<canvas class="trace" data-seed="${m.id.length}"></canvas>` : ""}
             </article>`;
           })
           .join("")}
+        ${
+          pending === s.id
+            ? `<article class="msg subject decoding" aria-live="polite">
+              <div class="meta">SUBJECT ${stamp()}</div>
+              <div class="bubble decoder"><span class="wave"><i></i><i></i><i></i><i></i><i></i></span> DECODING…</div>
+            </article>`
+            : ""
+        }
       </div>
       <form id="composer">
-        <textarea id="draft" placeholder="写入观察。对方不会回话，只会回信号。"></textarea>
-        <button class="send" type="submit" ${pending ? "disabled" : ""}>${pending ? "RECV…" : "SEND"}</button>
-        <div class="note">Enter 发送 · Shift+Enter 换行 · ${API ? "回复经信号代理回传" : "回复写在本地，不接模型"}</div>
+        <textarea id="draft" placeholder="写入观察。对方不会回话，解码器只读声带残端的震动。"></textarea>
+        <button class="send" type="submit" ${pending ? "disabled" : ""}>${pending ? "DECODING" : "SEND"}</button>
+        <div class="note">Enter 发送 · Shift+Enter 换行 · ${API ? "回复是声带残端震动的解码推测，CONF 低于 60% 时文本不可靠" : "离线：震动解码为本地推测"}</div>
       </form>
     </main>
   `;
@@ -241,14 +305,13 @@ function render() {
     if (!text) return;
     const box = active();
     box.messages.push({ id: id(), role: "user", text, at: stamp() });
-    pending = true;
+    pending = box.id;
     save();
     render();
     try {
-      const lines = await fetchReply(box.messages);
-      for (const line of lines) box.messages.push(subject(line));
+      box.messages.push(subjectDecoded(await fetchReply(box.messages)));
     } finally {
-      pending = false;
+      pending = null;
       save();
       render();
     }
