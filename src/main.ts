@@ -186,7 +186,7 @@ function replyTo(input: string): string[] {
   }
   if (/上一[个任位]|前任|失联|失踪/.test(q)) {
     return stageOf(score) >= 2
-      ? ["他和你不一样，他会半夜把灯关掉。\n别的，我现在还不想说。"]
+      ? ["他和你不一样，他会半夜把灯关掉。\n后来他被叫去三楼谈话，就没回来。他们谈了什么，我也不知道。"]
       : ["我们认识吗？\n这种事，等你坐满几个班再问。"];
   }
   if (/过去|以前|经历|怎么进来|为什么在这|声带|怎么没的|医院|病院/.test(q)) {
@@ -647,6 +647,8 @@ function playGame(replay: boolean) {
     story,
     saved: replay ? null : game,
     replay,
+    // 首次游玩必须通关才能进终端；重玩时是“退出序章”。开发调试可在网址后加 ?skip
+    canSkip: replay || new URLSearchParams(location.search).has("skip"),
     onSave: (s) => {
       if (replay) return; // 重玩的进度不覆盖真正的存档
       game = s;

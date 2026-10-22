@@ -1,3 +1,5 @@
+import { ART } from "./art";
+
 // 一个很小的文游引擎：场景、选项、标记（flags）、条件显示。故事本身在 story.ts，改文字不用碰这里。
 
 export type Flags = Record<string, number>;
@@ -6,6 +8,7 @@ export type Para = string | { if: Cond[]; t: string };
 export type Choice = { text: string; goto: string; set?: string[]; add?: Flags; show?: Cond[] };
 export type Scene = {
   title?: string;
+  art?: string; // 道具插图，见 art.ts
   text?: Para[]; // 以 “> ” 开头的行显示成终端引用
   choices?: Choice[];
   auto?: { if?: Cond[]; goto: string }[]; // 无界面的路由场景：按条件跳转
@@ -21,6 +24,7 @@ export type Opts = {
   story: Story;
   saved: Saved | null;
   replay: boolean; // 重玩：结局页给“保留现有记录 / 用这个结局重开”两个出口
+  canSkip: boolean; // 首次游玩不给跳过（通关才能进终端）；重玩时是“退出序章”
   onSave(s: Saved): void;
   onExit(how: Exit, s: Saved): void;
 };
@@ -73,7 +77,7 @@ export function mountGame(o: Opts): () => void {
   }
 
   const topBar = () =>
-    `<header class="g-top"><span>夜班手册 <i lang="en">NIGHT SHIFT</i></span><button type="button" class="g-skip">${o.replay ? "退出序章" : "跳过序章"}</button></header>`;
+    `<header class="g-top"><span>夜班手册 <i lang="en">NIGHT SHIFT</i></span>${o.canSkip ? `<button type="button" class="g-skip">${o.replay ? "退出序章" : "跳过序章"}</button>` : ""}</header>`;
 
   function cover() {
     el.className = "";
@@ -132,8 +136,15 @@ export function mountGame(o: Opts): () => void {
     el.innerHTML = `${topBar()}
       <article class="g-sheet${sc.end ? " g-ending" : ""}">
         ${sc.title ? `<div class="${sc.end ? "g-stamp" : "g-title"}">${fill(sc.title)}</div>` : ""}
+        ${sc.art && ART[sc.art] ? `<figure class="g-art">${ART[sc.art]}</figure>` : ""}
         ${html}${tail}
       </article>`;
+
+    // 线稿逐笔画出来
+    el.querySelectorAll<SVGElement>(".g-art .l, .g-art .m, .g-art .a, .g-art .f").forEach((n, i) => {
+      n.setAttribute("pathLength", "1");
+      if (!reduced()) n.style.animationDelay = `${(i * 0.06).toFixed(2)}s`;
+    });
 
     el.querySelectorAll<HTMLButtonElement>("[data-i]").forEach((b) => {
       b.onclick = () => {

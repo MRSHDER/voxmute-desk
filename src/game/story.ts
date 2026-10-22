@@ -8,6 +8,7 @@ export const story: Story = {
   start: "arrive",
   scenes: {
     arrive: {
+      art: "door",
       title: "23:41 · 海川研究区域",
       text: [
         "雨下了一整天，到凌晨还没停。",
@@ -20,11 +21,13 @@ export const story: Story = {
       ],
     },
     cam: {
+      art: "camera",
       text: ["镜头对着你。红点亮了两秒，又暗下去。", "你不知道它是在看你，还是在看你身后的什么。"],
       choices: [{ text: "继续往里走", goto: "desk" }],
     },
 
     desk: {
+      art: "desk",
       title: "00:02 · 信号台",
       text: [
         "信号台很小：一台终端，一副耳机，一盏台灯。",
@@ -40,6 +43,7 @@ export const story: Story = {
     },
 
     cookies: {
+      art: "cookies",
       set: ["seen_cookie", "looked"],
       text: [
         "半盒曲奇，盒盖折着。是脆边的，没有夹心。",
@@ -53,6 +57,7 @@ export const story: Story = {
     },
 
     drawer: {
+      art: "drawer",
       set: ["seen_drawer", "looked"],
       text: ["抽屉是锁着的。钥匙挂在台灯底座下面，露出一小截链子，像是故意留给下一个人的。"],
       choices: [
@@ -61,6 +66,7 @@ export const story: Story = {
       ],
     },
     drawer_open: {
+      art: "drawer_open",
       text: [
         "抽屉里有两样东西：一本交接日志，一张折成四折的字条。",
         { if: ["took_note"], t: "字条已经在你口袋里了。" },
@@ -72,6 +78,7 @@ export const story: Story = {
       ],
     },
     log: {
+      art: "log",
       set: ["read_log"],
       add: { curious: 1 },
       text: [
@@ -79,17 +86,20 @@ export const story: Story = {
         "> 02:40  载波正常。14 号今晚没睡。",
         "> 03:05  他在看我。不是看监控，是看我。",
         "> 03:12  饼干他吃了一块，剩下的我留给明天。",
-        "> 03:30  我想试试把灯关掉。",
+        "> 03:30  我把灯关了。想看看他不被盯着的时候，载波会不会不一样。",
+        "> 03:31  稳了。比任何时候都稳。他的尾巴在地上扫了三下。",
+        "> 04:10  通知：交班后到三楼谈话。",
         "最后一行之后是一团墨渍，再往后，全是空白。",
       ],
       choices: [{ text: "合上日志", goto: "drawer_open" }],
     },
     note: {
+      art: "note",
       set: ["read_note"],
       text: [
         "字迹和饼干盒上的一样。",
         "> 新来的：别把他记成“哑”。他一直在说，只是我们没有耳朵。",
-        "> 灯别关。",
+        "> 灯别关。别学我。",
       ],
       choices: [
         { text: "收进口袋", goto: "drawer_open", set: ["took_note"], add: { curious: 2 } },
@@ -98,6 +108,7 @@ export const story: Story = {
     },
 
     headset: {
+      art: "headset",
       set: ["seen_headset", "looked"],
       text: [
         "你戴上耳机。什么都没有，只有一条很细的底噪，像远处有人在吹一根针。",
@@ -108,11 +119,12 @@ export const story: Story = {
     },
 
     briefing: {
+      art: "briefing",
       title: "00:15 · 交接",
       text: [
         "终端自己亮了。绿色的字一行行跳出来：",
         "> OPERATOR HANDOVER",
-        "> 上一任操作员状态：未知",
+        "> 上一任操作员状态：已调离（去向未登记）",
         "> 请按手册执行：",
         "> 1. 不得将对象记录为“哑”。",
         "> 2. 不得向对象提供任何未登记的食物。",
@@ -120,7 +132,7 @@ export const story: Story = {
         "> 4. 夜班期间，灯不得关闭。",
         { if: ["ate"], t: "你嘴里还留着一点曲奇的甜味。第二条规定，好像是写给你看的。" },
         { if: ["pocket"], t: "你下意识按了按口袋。隔着布料，那块曲奇还是完整的。" },
-        { if: ["took_note"], t: "口袋里的字条硌了你一下。第一条和第四条，上一任已经替你写过一遍了。" },
+        { if: ["took_note"], t: "口袋里的字条硌了你一下。第一条你照做就行；第四条，上一任是用自己换来的教训。" },
       ],
       choices: [
         { text: "把四条都背下来", goto: "window", set: ["protocol"] },
@@ -130,6 +142,7 @@ export const story: Story = {
     },
 
     window: {
+      art: "window",
       title: "00:30 · 观察室",
       text: [
         "信号台旁边有一扇观察窗。窗后是 14 号观察室，灯亮着。",
@@ -158,6 +171,7 @@ export const story: Story = {
       ],
     },
     gave: {
+      art: "hatch",
       set: ["gave"],
       text: [
         "你把曲奇从投递口塞了进去。第二条规定在你脑子里响了一下，你装作没听见。",
@@ -176,6 +190,7 @@ export const story: Story = {
     },
 
     end_cookie: {
+      art: "cookie_wave",
       end: "cookie",
       title: "结局 A · 半盒曲奇",
       text: [
@@ -184,6 +199,7 @@ export const story: Story = {
       ],
     },
     end_note: {
+      art: "note",
       end: "note",
       title: "结局 B · 一张字条",
       text: [
@@ -192,10 +208,12 @@ export const story: Story = {
       ],
     },
     end_book: {
+      art: "manual",
       end: "book",
-      title: "结局 C · 照章办事",
+      title: "结局 C · 平静的夜班",
       text: [
-        "解码器启动。你把手册摊在手边，一条一条核对。",
+        { if: ["protocol"], t: "解码器启动。你把手册摊在手边，一条一条核对。" },
+        { if: ["!protocol"], t: "解码器启动。手册被你随手扔在一边。" },
         "没有一条规定告诉你，下一个问题该怎么问。",
       ],
     },
@@ -227,8 +245,8 @@ export function finishGame(flags: Flags, name: string): GameResult {
   if (f("ate")) lines.push("- 操作员吃掉了上一任留下的一块曲奇。");
   if (f("gave")) lines.push("- 操作员违反第二条规定，从投递口递进来一块曲奇。脆边的，没有夹心。");
   else if (f("pocket")) lines.push("- 操作员口袋里带着一块曲奇，但没有递进来。");
-  if (f("read_log")) lines.push("- 操作员翻看了上一任锁在抽屉里的交接日志。");
-  if (f("took_note")) lines.push("- 操作员拿走了上一任留在抽屉里的字条（“别把他记成哑”“灯别关”）。");
+  if (f("read_log")) lines.push("- 操作员翻看了上一任锁在抽屉里的交接日志（最后一条是“交班后到三楼谈话”）。");
+  if (f("took_note")) lines.push("- 操作员拿走了上一任留在抽屉里的字条（“别把他记成哑”“灯别关，别学我”）。");
   if (f("greet")) lines.push("- 操作员隔着玻璃主动自我介绍。");
   if (f("recite")) lines.push("- 操作员对着麦克风念了手册第一条。");
   if (f("said_hear")) lines.push("- 操作员对他说“我知道你听得见”。");
