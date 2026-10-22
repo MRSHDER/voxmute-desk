@@ -8,12 +8,14 @@ export const story: Story = {
   start: "arrive",
   scenes: {
     arrive: {
+      conf: 93,
       art: "door",
       title: "23:41 · 海川研究区域",
       text: [
         "雨下了一整天，到凌晨还没停。",
         "你抱着一个纸箱站在 TXC 海川研究区域的侧门前：调岗通知、一支没拆封的笔，还有一张写着“夜班 / 信号台”的工牌。",
         "门禁“嘀”了一声。走廊里的灯一盏一盏亮起来，像是有人在远处替你按开关。",
+        { if: ["loop>=1"], t: "你有种说不清的感觉：这场雨，你好像淋过。" },
       ],
       choices: [
         { text: "径直往里走", goto: "desk" },
@@ -21,17 +23,20 @@ export const story: Story = {
       ],
     },
     cam: {
+      conf: 85,
       art: "camera",
       text: ["镜头对着你。红点亮了两秒，又暗下去。", "你不知道它是在看你，还是在看你身后的什么。"],
       choices: [{ text: "继续往里走", goto: "desk" }],
     },
 
     desk: {
+      conf: 90,
       art: "desk",
       title: "00:02 · 信号台",
       text: [
         "信号台很小：一台终端，一副耳机，一盏台灯。",
         "椅子是歪的，像有人刚刚站起来，还没回来。",
+        { if: ["loop>=1"], t: "歪的角度，和你记得的一模一样。" },
         { if: ["looked>=2"], t: "该看的差不多都看过了。再不接班，终端大概要自己叫你了。" },
       ],
       choices: [
@@ -43,6 +48,7 @@ export const story: Story = {
     },
 
     cookies: {
+      conf: 88,
       art: "cookies",
       set: ["seen_cookie", "looked"],
       text: [
@@ -57,6 +63,7 @@ export const story: Story = {
     },
 
     drawer: {
+      conf: 72,
       art: "drawer",
       set: ["seen_drawer", "looked"],
       text: ["抽屉是锁着的。钥匙挂在台灯底座下面，露出一小截链子，像是故意留给下一个人的。"],
@@ -66,6 +73,7 @@ export const story: Story = {
       ],
     },
     drawer_open: {
+      conf: 70,
       art: "drawer_open",
       text: [
         "抽屉里有两样东西：一本交接日志，一张折成四折的字条。",
@@ -78,6 +86,7 @@ export const story: Story = {
       ],
     },
     log: {
+      conf: 63,
       art: "log",
       set: ["read_log"],
       add: { curious: 1 },
@@ -94,12 +103,15 @@ export const story: Story = {
       choices: [{ text: "合上日志", goto: "drawer_open" }],
     },
     note: {
+      conf: 57,
       art: "note",
       set: ["read_note"],
       text: [
         "字迹和饼干盒上的一样。",
         "> 新来的：别把他记成“哑”。他一直在说，只是我们没有耳朵。",
         "> 灯别关。别学我。",
+        { if: ["loop>=1"], t: "字条背面，多了一行很小的字。你确定上次看的时候，那里是空白。" },
+        { if: ["loop>=1"], t: "~ 这是第 {n} 次了。" },
       ],
       choices: [
         { text: "收进口袋", goto: "drawer_open", set: ["took_note"], add: { curious: 2 } },
@@ -108,6 +120,7 @@ export const story: Story = {
     },
 
     headset: {
+      conf: 52,
       art: "headset",
       set: ["seen_headset", "looked"],
       text: [
@@ -119,6 +132,7 @@ export const story: Story = {
     },
 
     briefing: {
+      conf: 76,
       art: "briefing",
       title: "00:15 · 交接",
       text: [
@@ -148,6 +162,7 @@ export const story: Story = {
     },
 
     window: {
+      conf: 68,
       art: "window",
       title: "00:30 · 观察室",
       text: [
@@ -164,6 +179,7 @@ export const story: Story = {
       ],
     },
     window2: {
+      conf: 71,
       text: [
         { if: ["greet"], t: "他的耳朵转了过来。只转了一点点，像是在确认声音从哪里来。" },
         { if: ["recite"], t: "他的尾巴停住了。屏幕上，载波往下沉了一格。" },
@@ -179,6 +195,7 @@ export const story: Story = {
       ],
     },
     lights: {
+      conf: 41,
       art: "switch",
       title: "03:31 · ？",
       set: ["lights_off"],
@@ -195,6 +212,7 @@ export const story: Story = {
       ],
     },
     gave: {
+      conf: 87,
       art: "hatch",
       set: ["gave"],
       text: [
@@ -215,6 +233,7 @@ export const story: Story = {
     },
 
     end_dark: {
+      conf: 47,
       end: "dark",
       art: "switch",
       title: "结局 D · 灯",
@@ -225,6 +244,7 @@ export const story: Story = {
       ],
     },
     end_cookie: {
+      conf: 92,
       art: "cookie_wave",
       end: "cookie",
       title: "结局 A · 半盒曲奇",
@@ -234,6 +254,7 @@ export const story: Story = {
       ],
     },
     end_note: {
+      conf: 66,
       art: "note",
       end: "note",
       title: "结局 B · 一张字条",
@@ -243,6 +264,7 @@ export const story: Story = {
       ],
     },
     end_book: {
+      conf: 81,
       art: "manual",
       end: "book",
       title: "结局 C · 平静的夜班",
@@ -255,6 +277,13 @@ export const story: Story = {
   },
 };
 
+export const ENDING_NAMES: Record<string, string> = {
+  cookie: "半盒曲奇",
+  note: "一张字条",
+  book: "平静的夜班",
+  dark: "灯",
+};
+
 export type GameResult = {
   ending: string;
   score: number; // 熟悉度起点（0–11 陌生/开始习惯，12 起为熟悉）
@@ -263,7 +292,7 @@ export type GameResult = {
 };
 
 /** 把一局游戏换算成终端的起点。 */
-export function finishGame(flags: Flags, name: string): GameResult {
+export function finishGame(flags: Flags, name: string, history: string[] = []): GameResult {
   const f = (k: string) => (flags[k] ?? 0) > 0;
   const who = name || "新人";
 
@@ -277,7 +306,7 @@ export function finishGame(flags: Flags, name: string): GameResult {
   if (f("lights_off")) score += 6;
   if (f("ate")) score = Math.max(0, score - 2);
 
-  const lines = [`- 操作员叫${who}，新调来的夜班监听员，今晚是第一个夜班。`];
+  const lines = [`- 操作员叫${who}，新调来的夜班监听员${history.length ? "" : "，今晚是第一个夜班"}。`];
   if (f("ate")) lines.push("- 操作员吃掉了上一任留下的一块曲奇。");
   if (f("gave")) lines.push("- 操作员违反第二条规定，从投递口递进来一块曲奇。脆边的，没有夹心。");
   else if (f("pocket")) lines.push("- 操作员口袋里带着一块曲奇，但没有递进来。");
@@ -289,6 +318,12 @@ export function finishGame(flags: Flags, name: string): GameResult {
   if (f("protocol")) lines.push("- 操作员把手册五条规定都背下来了。");
   if (f("saw_hand")) lines.push("- 操作员注意到手册页脚的手写小字（“第 4 条是他们写的，灯一关才听得见”“第 3 条不用管”），不知道是谁写的。");
   if (f("lights_off")) lines.push("- 操作员违反第四条，把信号台的灯关了。关灯后载波稳了下来，他朝着玻璃转过身。三楼的谈话通知大概躲不掉。");
+
+  if (f("away")) lines.push(`- 操作员在序章中途离开过岗位（${flags.away} 次）。手册里没有这一条，折声注意到了。`);
+  if (history.length > 0) {
+    const last = ENDING_NAMES[history[history.length - 1]] ?? "未知";
+    lines.push(`- 这不是操作员第一次接这个夜班（第 ${history.length + 1} 次，上一次的结局是「${last}」）。折声说不清为什么，对这个人有种见过的感觉。`);
+  }
 
   let ending: string;
   let opener: string[];
@@ -313,6 +348,7 @@ export function finishGame(flags: Flags, name: string): GameResult {
     ending = "book";
     opener = ["新来的？", "坐吧。这个班本来就没人想接。"];
   }
+  if (history.length > 0) opener = ["……又是你？", ...opener];
   return { ending, score, notes: lines.join("\n"), opener };
 }
 

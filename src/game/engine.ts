@@ -9,6 +9,7 @@ export type Choice = { text: string; goto: string; set?: string[]; add?: Flags; 
 export type Scene = {
   title?: string;
   art?: string; // 道具插图，见 art.ts
+  conf?: number; // 这一幕的“解码置信度”，显示成顶部读数；越低越不可信（默认 90）
   text?: Para[]; // “> ” 开头的行是终端/印刷引用，“~ ” 开头的行是手写批注
   choices?: Choice[];
   auto?: { if?: Cond[]; goto: string }[]; // 无界面的路由场景：按条件跳转
@@ -24,6 +25,7 @@ export type Opts = {
   story: Story;
   saved: Saved | null;
   replay: boolean; // 重玩：结局页给“保留现有记录 / 用这个结局重开”两个出口
+  startFlags?: Flags; // 新开一局时的初始标记（比如 loop：之前通关过几次）
   canSkip: boolean; // 首次游玩不给跳过（通关才能进终端）；重玩时是“退出序章”
   onSave(s: Saved): void;
   onExit(how: Exit, s: Saved): void;
@@ -44,14 +46,18 @@ export const cleanName = (s: string) => s.replace(/[\r\n\t<>&"'`{}]+/g, " ").tri
 
 export function mountGame(o: Opts): () => void {
   const { story } = o;
-  const state: Saved = o.saved?.scene ? JSON.parse(JSON.stringify(o.saved)) : { scene: "", flags: {}, name: "" };
+  const state: Saved = o.saved?.scene
+    ? JSON.parse(JSON.stringify(o.saved))
+    : { scene: "", flags: { ...(o.startFlags ?? {}) }, name: "" };
+  let resumed = !!o.saved?.scene; // 刷新后续玩：第一幕提示“链路中断”
   const el = document.createElement("div");
   el.id = "game";
   el.setAttribute("aria-live", "polite");
   document.body.append(el);
   document.documentElement.classList.add("in-game");
 
-  const fill = (s: string) => esc(s.replaceAll("{name}", state.name || "新人"));
+  const fill = (s: string) =>
+    esc(s.replaceAll("{name}", state.name || "新人").replaceAll("{n}", String((state.flags.loop ?? 0) + 1)));
   const save = () => o.onSave(JSON.parse(JSON.stringify(state)));
 
   const apply = (set?: string[], add?: Flags) => {
@@ -86,7 +92,8 @@ export function mountGame(o: Opts): () => void {
         <div class="g-kicker">TXC / BIO-SIGNAL DIV. · 海川研究区域</div>
         <h1>夜班手册<span lang="en">NIGHT SHIFT</span></h1>
         <p class="g-p">你是新调来的夜班监听员。第一个夜班，从交接开始。</p>
-        <p class="g-hint">序章大约十分钟。你在这里的选择，会决定今晚终端里的他，怎么对你开口。</p>
+        <p class="g-hint">序章大约十分钟。你在这里的选择，会决定今晚终端里的他，怎么对你开口。<br />以下为解码记录：置信度（CONF）会随内容变化，请勿当作事实。</p>
+        ${(state.flags.loop ?? 0) > 0 ? `<p class="g-sys">这是你第 ${state.flags.loop + 1} 次接这个夜班。</p>` : ""}
         <label class="g-name">操作员姓名 <i lang="en">NAME</i>
           <input id="g-name" maxlength="12" placeholder="新人" autocomplete="off" value="${esc(state.name)}" />
         </label>
@@ -108,6 +115,7 @@ export function mountGame(o: Opts): () => void {
     const paras = (sc.text ?? [])
       .filter((p) => typeof p === "string" || holds(state.flags, p.if))
       .map((p) => (typeof p === "string" ? p : p.t));
+    if (sc.end) paras.push("> 解码完成。以上为对载波的推测文本，不可当作事实记录。");
     const step = reduced() ? 0 : 0.55;
     const html = paras
       .map((p, i) => {
@@ -134,10 +142,21 @@ export function mountGame(o: Opts): () => void {
         .join("")}</div>`;
     }
 
+    const conf = sc.conf ?? 90;
+    const hash = [...state.scene].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+    const amp = conf < 60 ? "HIGH" : conf < 80 ? "MID" : "LOW";
+    const readout = sc.end
+      ? `DECODE COMPLETE · CONF ${conf}%`
+      : `FREQ ${55 + (hash % 46)}Hz · AMP ${amp} · CONF ${conf}%`;
+    const notice = resumed ? `<div class="g-sys">[链路中断 · 已恢复]</div>` : "";
+    resumed = false;
+
     el.className = "";
     el.innerHTML = `${topBar()}
       <article class="g-sheet${sc.end ? " g-ending" : ""}">
+        ${notice}
         ${sc.title ? `<div class="${sc.end ? "g-stamp" : "g-title"}">${fill(sc.title)}</div>` : ""}
+        <div class="g-readout${conf < 60 ? " low" : ""}">${readout}</div>
         ${sc.art && ART[sc.art] ? `<figure class="g-art">${ART[sc.art]}</figure>` : ""}
         ${html}${tail}
       </article>`;
@@ -176,8 +195,28 @@ export function mountGame(o: Opts): () => void {
   };
   document.addEventListener("keydown", onKey);
 
+  // 切走标签页 5 秒以上再回来：手册里没有这一条，但它记了一笔
+  let hiddenAt = 0;
+  const onVis = () => {
+    if (document.hidden) {
+      hiddenAt = Date.now();
+      return;
+    }
+    if (!hiddenAt || !state.scene || story.scenes[state.scene]?.end) return;
+    const secs = Math.round((Date.now() - hiddenAt) / 1000);
+    hiddenAt = 0;
+    if (secs < 5) return;
+    apply(["away"]);
+    save();
+    const mm = String(Math.floor(secs / 60)).padStart(2, "0");
+    const ss = String(secs % 60).padStart(2, "0");
+    el.querySelector(".g-sheet")?.insertAdjacentHTML("afterbegin", `<div class="g-sys">[操作员离岗 ${mm}:${ss} · 无对应规定，已记录]</div>`);
+  };
+  document.addEventListener("visibilitychange", onVis);
+
   draw();
   return () => {
+    document.removeEventListener("visibilitychange", onVis);
     document.removeEventListener("keydown", onKey);
     el.remove();
     document.documentElement.classList.remove("in-game");

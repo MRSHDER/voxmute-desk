@@ -631,3 +631,26 @@ html.in-game #bgwave { display: none; }
   transform-origin: left center;
 }
 .g-quote + .g-p:not(.g-quote), .g-hand + .g-p:not(.g-hand) { margin-top: 16px; }
+
+/* 解码读数与系统提示 */
+.g-readout {
+  font: 11px/1.4 var(--mono);
+  letter-spacing: 0.1em;
+  color: var(--star);
+  text-align: right;
+  margin: -6px 0 16px;
+}
+.g-readout.low { animation: g-flick 2.8s steps(1, end) infinite; }
+@keyframes g-flick { 0%, 100% { opacity: 1; } 30% { opacity: 0.35; } 34% { opacity: 1; } 70% { opacity: 0.5; } 73% { opacity: 1; } }
+.g-sys {
+  display: inline-block;
+  margin: 0 0 16px;
+  padding: 4px 10px;
+  font: 12px/1.6 var(--mono);
+  letter-spacing: 0.06em;
+  color: var(--stamp);
+  border: 1px solid var(--stamp);
+  transform: rotate(-0.8deg);
+}
+.g-cover .g-sys { margin: 0 0 18px; }
+@media (prefers-reduced-motion: reduce) { .g-readout.low { animation: none; } }

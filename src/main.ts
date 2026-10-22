@@ -589,6 +589,8 @@ files.querySelector<HTMLButtonElement>("#all-reset")!.onclick = () => {
   files.close();
   game = { scene: "", flags: {}, name: "", done: false };
   store(GAME_KEY, JSON.stringify(game));
+  history = [];
+  store(HISTORY_KEY, "[]");
   playGame(false);
 };
 files.querySelector<HTMLButtonElement>("#game-replay")!.onclick = () => {
@@ -622,6 +624,15 @@ if (!game && recall(KEY) !== null) {
   game = { scene: "", flags: {}, name: "", done: true };
   store(GAME_KEY, JSON.stringify(game));
 }
+// 通关过的结局（按时间顺序）。重玩时用来让游戏“记得你来过”：封面提示、场景里的熟悉感、折声的备忘。
+const HISTORY_KEY = "voxmute-desk-history-v1";
+let history: string[] = [];
+try {
+  const raw = JSON.parse(recall(HISTORY_KEY) ?? "[]");
+  if (Array.isArray(raw)) history = raw.filter((x): x is string => typeof x === "string");
+} catch {
+  /* 忽略 */
+}
 let stopGame: (() => void) | null = null;
 
 function applyResult(r: GameResult) {
@@ -647,6 +658,7 @@ function playGame(replay: boolean) {
     story,
     saved: replay ? null : game,
     replay,
+    startFlags: { loop: history.length },
     // 首次游玩必须通关才能进终端；重玩时是“退出序章”。开发调试可在网址后加 ?skip
     canSkip: replay || new URLSearchParams(location.search).has("skip"),
     onSave: (s) => {
@@ -657,6 +669,13 @@ function playGame(replay: boolean) {
     onExit: (how, s) => {
       stopGame?.();
       stopGame = null;
+      // 走到结局才算一次通关（中途“退出序章”不算）
+      const reached = story.scenes[s.scene]?.end;
+      const prior = history.slice();
+      if (reached && how !== "skip") {
+        history.push(reached);
+        store(HISTORY_KEY, JSON.stringify(history));
+      }
       if (how === "keep") return enterDesk();
       if (how === "skip") {
         game = { scene: "", flags: {}, name: "", done: true };
@@ -665,7 +684,7 @@ function playGame(replay: boolean) {
         return enterDesk();
       }
       // enter / apply：把结局写进终端，再开机
-      applyResult(finishGame(s.flags, s.name));
+      applyResult(finishGame(s.flags, s.name, prior));
       game = { ...(replay ? (game ?? s) : s), done: true };
       store(GAME_KEY, JSON.stringify(game));
       const boot = bootTransition(["TXC / BIO-SIGNAL DIV.", `OPERATOR: ${s.name || "新人"}`, "CAM-14 / RESIDUAL", "CHANNEL OPEN. SUBJECT DOES NOT SPEAK."]);
