@@ -401,3 +401,38 @@ button.send:disabled { opacity: 0.55; cursor: wait; }
   .wave i { animation: none; height: 8px; }
   .decoded.glitch-in { animation: none; }
 }
+
+/* ---------- 档案管理弹窗 ---------- */
+dialog#files {
+  width: min(520px, calc(100vw - 32px));
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--rule);
+  background: var(--sheet);
+  color: var(--ink);
+  box-shadow: 0 30px 60px -30px var(--drop);
+}
+dialog#files::backdrop { background: rgba(10, 11, 12, 0.55); }
+.files-box { padding: 22px 24px 20px; display: flex; flex-direction: column; gap: 10px; }
+.files-box h2 { font-size: 20px; letter-spacing: 0.1em; border-bottom: 2px solid var(--rule); padding-bottom: 10px; }
+.files-box h2 span { font: 600 11px var(--mono); letter-spacing: 0.2em; color: var(--ink-soft); margin-left: 8px; }
+.files-label { font-weight: 700; letter-spacing: 0.06em; margin-top: 4px; }
+.files-label span { font: 11px var(--mono); color: var(--ink-soft); margin-left: 6px; }
+.files-hint { font: 12px/1.6 var(--mono); color: var(--ink-soft); }
+.files-box textarea { min-height: 140px; width: 100%; font-size: 14px; line-height: 1.7; }
+.files-box hr { border: 0; border-top: 1px solid var(--edge); margin: 6px 0; }
+.files-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.files-row.end { justify-content: flex-end; margin-top: 4px; }
+.files-row button {
+  background: transparent;
+  border: 1px solid var(--ink-soft);
+  color: var(--ink);
+  padding: 8px 12px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.files-row button span { font: 11px var(--mono); opacity: 0.8; margin-left: 4px; }
+.files-row button:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.files-row button.danger { border-color: var(--stamp); color: var(--stamp); }
+.files-row button.danger:hover { background: var(--stamp); color: #fff; border-color: var(--stamp); }

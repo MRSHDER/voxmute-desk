@@ -118,8 +118,24 @@ let current = sessions[0].id;
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
+/* ---------- 本地存储（隐私模式等读写失败时静默忽略） ---------- */
+function recall(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function store(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* 忽略 */
+  }
+}
+
 function save() {
-  localStorage.setItem(KEY, JSON.stringify(sessions));
+  store(KEY, JSON.stringify(sessions));
 }
 
 function active() {
@@ -127,17 +143,28 @@ function active() {
 }
 
 /* ---------- 熟悉度 ----------
-   聊得越多，折声透露得越多。按操作员发过的消息总数算（所有记录合计，新建记录不会清零），
-   聊到他在意的东西（曲奇、小动物）额外加分。0 陌生 · 1 开始习惯 · 2 熟悉 · 3 信任。
-   代理按这个等级决定他肯讲多少过去。 */
+   聊得越多，折声透露得越多。按操作员发过的每一句累计（跨记录，新建 / 删除记录都不影响，
+   只有“清空全部”会归零），聊到他在意的东西（曲奇、小动物）额外加分。
+   0 陌生 · 1 开始习惯 · 2 熟悉 · 3 信任。代理按这个等级决定他肯讲多少过去。 */
+const SCORE_KEY = "voxmute-desk-rapport-v1";
 const LIKES = /饼干|曲奇|cookie|猫|狗|小动物|宠物/i;
-function rapportOf(all: Session[]): number {
-  let score = 0;
-  for (const s of all)
-    for (const m of s.messages)
-      if (m.role === "user") score += 1 + (LIKES.test(m.text) ? 2 : 0);
-  return score >= 25 ? 3 : score >= 12 ? 2 : score >= 5 ? 1 : 0;
+const textScore = (text: string) => 1 + (LIKES.test(text) ? 2 : 0);
+const stageOf = (n: number) => (n >= 25 ? 3 : n >= 12 ? 2 : n >= 5 ? 1 : 0);
+let score = Number(recall(SCORE_KEY));
+if (recall(SCORE_KEY) === null || !Number.isFinite(score)) {
+  // 旧版本没存过分数：按已有记录补算一次
+  score = sessions.reduce((sum, s) => sum + s.messages.filter((x) => x.role === "user").reduce((n, x) => n + textScore(x.text), 0), 0);
+  store(SCORE_KEY, String(score));
 }
+
+/* ---------- 记忆 ----------
+   WINDOW：每次发给模型的最近消息条数（当前记录，不含系统提示行）。
+   notes：跨记录的“操作员备忘”，每聊 MEMO_EVERY 句由代理整理一次，随每次对话一起发出，
+   这样聊长了他也记得你说过的名字、答应过的事、他自己已经讲过的过去。 */
+const NOTES_KEY = "voxmute-desk-notes-v1";
+const WINDOW = 30;
+const MEMO_EVERY = 6;
+let notes = recall(NOTES_KEY) ?? "";
 
 function replyTo(input: string): string[] {
   const q = input.toLowerCase();
@@ -151,17 +178,17 @@ function replyTo(input: string): string[] {
     return ["……你带了？\n别误会，我只是想知道你有没有诚意。"];
   }
   if (/猫|狗|小动物|宠物/.test(q)) {
-    return rapportOf(sessions) >= 2
+    return stageOf(score) >= 2
       ? ["病院后院以前有只瘸腿的猫。我每天留一半饭，隔着铁丝网递给它。\n后来它不见了。……别问了。"]
       : ["它们比人安静，也比人诚实。\n你养过吗？"];
   }
   if (/上一[个任位]|前任|失联|失踪/.test(q)) {
-    return rapportOf(sessions) >= 2
+    return stageOf(score) >= 2
       ? ["他和你不一样，他会半夜把灯关掉。\n别的，我现在还不想说。"]
       : ["我们认识吗？\n这种事，等你坐满几个班再问。"];
   }
   if (/过去|以前|经历|怎么进来|为什么在这|声带|怎么没的|医院|病院/.test(q)) {
-    return rapportOf(sessions) >= 2
+    return stageOf(score) >= 2
       ? ["病院里待了很多年。他们说我是稳定的病例，因为我从不吵闹。\n其实我只是在记他们换班的时间。"]
       : ["你这个问法，像在填表。\n我们还没熟到那一步。"];
   }
@@ -213,6 +240,36 @@ function subjectDecoded(d: Decoded): Msg {
   return { id: id(), role: "subject", text: decodedLines(d), at: stamp(), decoded: d };
 }
 
+function recentOf(history: Msg[]) {
+  return history
+    .filter((m) => m.role !== "system")
+    .slice(-WINDOW)
+    .map(({ role, text }) => ({ role, text: text.slice(0, 600) }));
+}
+
+// 每聊 MEMO_EVERY 句，让代理把最近的对话整理进备忘；失败就算了，下次再试。
+async function updateMemo(box: Session) {
+  if (!API) return;
+  const said = box.messages.filter((m) => m.role === "user").length;
+  if (!said || said % MEMO_EVERY) return;
+  try {
+    const res = await fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "memo", messages: recentOf(box.messages), notes }),
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as { notes?: unknown };
+    if (typeof data.notes !== "string") return;
+    notes = data.notes.slice(0, 800);
+    store(NOTES_KEY, notes);
+    const field = document.querySelector<HTMLTextAreaElement>("#memo");
+    if (field && document.querySelector<HTMLDialogElement>("#files")?.open !== true) field.value = notes;
+  } catch {
+    /* 忽略 */
+  }
+}
+
 async function fetchReply(history: Msg[]): Promise<Decoded> {
   const lastText = history[history.length - 1]?.text ?? "";
   if (!API) return localDecode(lastText, "[离线·本地推测]");
@@ -221,8 +278,9 @@ async function fetchReply(history: Msg[]): Promise<Decoded> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        messages: history.slice(-12).map(({ role, text }) => ({ role, text: text.slice(0, 600) })),
-        rapport: rapportOf(sessions),
+        messages: recentOf(history),
+        rapport: stageOf(score),
+        notes,
       }),
     });
     if (res.status === 429) return localDecode(lastText, "[载波饱和·本地推测]");
@@ -327,6 +385,7 @@ function render() {
           <span class="flag warn"><span>无声</span>VOICE NULL</span>
           <span class="flag on"><span>载波</span>CARRIER ON</span>
           <span class="flag ${API ? "on" : ""}"><span>${API ? "链路" : "离线"}</span>${API ? "LINK ON" : "LOCAL ONLY"}</span>
+          <button class="theme-toggle" id="files-btn" type="button" aria-haspopup="dialog"><span>档案</span>FILES</button>
           <button class="theme-toggle" id="theme-toggle" type="button" aria-pressed="${theme === "dark"}" aria-label="${theme === "dark" ? "切换到日间 Switch to day" : "切换到夜间 Switch to night"}"><span>${theme === "dark" ? "日间" : "夜间"}</span>${theme === "dark" ? "DAY" : "NIGHT"}</button>
         </div>
       </header>
@@ -386,6 +445,8 @@ function render() {
     render();
   };
 
+  app.querySelector<HTMLButtonElement>("#files-btn")!.onclick = openFiles;
+
   app.querySelector<HTMLButtonElement>("#theme-toggle")!.onclick = () => {
     theme = theme === "dark" ? "light" : "dark";
     try { localStorage.setItem(THEME_KEY, theme); } catch { /* 忽略 */ }
@@ -408,6 +469,8 @@ function render() {
     if (!text) return;
     const box = active();
     box.messages.push({ id: id(), role: "user", text, at: stamp() });
+    score += textScore(text);
+    store(SCORE_KEY, String(score));
     pending = box.id;
     setDecoding(true);
     save();
@@ -419,6 +482,7 @@ function render() {
       if (current === box.id) freshId = msg.id;
       setDecoding(false);
       pulse(d, isFlat(d));
+      void updateMemo(box);
     } finally {
       setDecoding(false);
       pending = null;
@@ -447,6 +511,86 @@ function escapeHtml(text: string) {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+}
+
+/* ---------- 档案管理：备忘 / 导出 / 删除 / 清空 ---------- */
+const files = document.createElement("dialog");
+files.id = "files";
+files.setAttribute("aria-labelledby", "files-title");
+files.innerHTML = `
+  <form method="dialog" class="files-box">
+    <h2 id="files-title">档案管理 <span lang="en">ARCHIVE</span></h2>
+    <label class="files-label" for="memo">他记得的事 <span lang="en">MEMO</span></label>
+    <p class="files-hint">每聊 ${MEMO_EVERY} 句会自动整理一次。你也可以直接改，下次对话就按改过的来。</p>
+    <textarea id="memo" rows="7" maxlength="800" placeholder="（还没有备忘。多聊几句之后会自动出现。）"></textarea>
+    <div class="files-row"><button type="button" id="memo-clear">清空备忘</button></div>
+    <hr />
+    <div class="files-row">
+      <button type="button" id="log-export">导出当前记录 <span lang="en">.txt</span></button>
+      <button type="button" id="log-delete">删除当前记录</button>
+    </div>
+    <div class="files-row"><button type="button" id="all-reset" class="danger">清空全部，重新开始</button></div>
+    <div class="files-row end"><button value="close">关闭 <span lang="en">CLOSE</span></button></div>
+  </form>`;
+document.body.append(files);
+
+const memoField = files.querySelector<HTMLTextAreaElement>("#memo")!;
+memoField.addEventListener("input", () => {
+  notes = memoField.value.slice(0, 800);
+  store(NOTES_KEY, notes);
+});
+files.querySelector<HTMLButtonElement>("#memo-clear")!.onclick = () => {
+  if (!confirm("清空他的备忘？之后他会忘掉这些事。")) return;
+  notes = "";
+  store(NOTES_KEY, "");
+  memoField.value = "";
+};
+files.querySelector<HTMLButtonElement>("#log-export")!.onclick = () => {
+  const s = active();
+  const who = (r: Role) => (r === "user" ? "操作员" : r === "subject" ? "对象" : "信号台");
+  const text = [
+    `折声 VoxMute · ${s.title}（${s.bay}）`,
+    `导出时间：${new Date().toLocaleString("zh-CN", { hour12: false })}`,
+    "",
+    ...s.messages.map((m) => `[${m.at}] ${who(m.role)}：${m.text}`),
+    "",
+  ].join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  a.download = `voxmute-${s.title.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().slice(0, 10)}.txt`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+files.querySelector<HTMLButtonElement>("#log-delete")!.onclick = () => {
+  const s = active();
+  if (!confirm(`删除记录「${s.title}」？这条记录的聊天会一起删掉，不能撤销。（他对你的熟悉度和备忘不受影响）`)) return;
+  sessions = sessions.filter((x) => x.id !== s.id);
+  if (!sessions.length) sessions = seed();
+  current = sessions[0].id;
+  save();
+  files.close();
+  render();
+};
+files.querySelector<HTMLButtonElement>("#all-reset")!.onclick = () => {
+  if (!confirm("清空全部？所有记录、他的备忘、他对你的熟悉度都会归零，从头开始。不能撤销。")) return;
+  sessions = seed();
+  current = sessions[0].id;
+  notes = "";
+  score = 0;
+  save();
+  store(NOTES_KEY, "");
+  store(SCORE_KEY, "0");
+  memoField.value = "";
+  files.close();
+  render();
+};
+files.addEventListener("click", (e) => {
+  if (e.target === files) files.close(); // 点遮罩关闭
+});
+
+function openFiles() {
+  memoField.value = notes;
+  files.showModal();
 }
 
 initEffects();
