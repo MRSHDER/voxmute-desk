@@ -100,6 +100,16 @@ function applyTheme() {
   document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#0b0c0d" : "#d9dbd4");
 }
 applyTheme();
+/* ---------- 声音开关（终端头部） ---------- */
+const soundTag = () => (gameSound.status === "muted" ? "OFF" : gameSound.status === "waiting" ? "TAP" : "ON");
+function syncSoundToggle() {
+  const btn = document.querySelector<HTMLButtonElement>("#sound-toggle");
+  if (!btn) return;
+  btn.setAttribute("aria-pressed", String(gameSound.enabled));
+  btn.setAttribute("aria-label", gameSound.status === "waiting" ? "点一下启用声音 Tap to enable sound" : gameSound.enabled ? "关闭声音 Sound off" : "打开声音 Sound on");
+  btn.innerHTML = `<span>声音</span>${soundTag()}`;
+}
+
 function syncThemeToggle() {
   const btn = document.querySelector<HTMLButtonElement>("#theme-toggle");
   if (!btn) return;
@@ -364,6 +374,7 @@ function removeSession(id: string) {
   if (!sessions.length) sessions = seed();
   if (!sessions.some((x) => x.id === current)) current = sessions[0].id;
   save();
+  gameSound.play("delete");
   render();
 }
 
@@ -405,6 +416,7 @@ function render() {
           <span class="flag on"><span>载波</span>CARRIER ON</span>
           <span class="flag ${API ? "on" : ""}"><span>${API ? "链路" : "离线"}</span>${API ? "LINK ON" : "LOCAL ONLY"}</span>
           <button class="theme-toggle" id="files-btn" type="button" aria-haspopup="dialog"><span>档案</span>FILES</button>
+          <button class="theme-toggle" id="sound-toggle" type="button" aria-pressed="${gameSound.enabled}" aria-label="声音 Sound"><span>声音</span>${soundTag()}</button>
           <button class="theme-toggle" id="theme-toggle" type="button" aria-pressed="${theme === "dark"}" aria-label="${theme === "dark" ? "切换到日间 Switch to day" : "切换到夜间 Switch to night"}"><span>${theme === "dark" ? "日间" : "夜间"}</span>${theme === "dark" ? "DAY" : "NIGHT"}</button>
         </div>
       </header>
@@ -468,15 +480,24 @@ function render() {
     sessions = [next, ...sessions];
     current = next.id;
     save();
+    gameSound.play("page");
     render();
   };
 
   app.querySelector<HTMLButtonElement>("#files-btn")!.onclick = openFiles;
 
+  app.querySelector<HTMLButtonElement>("#sound-toggle")!.onclick = () => {
+    // 想出声但浏览器还拦着：这一下是“启用”，不是“关掉”
+    if (gameSound.status === "waiting") gameSound.unlock();
+    else gameSound.setEnabled(!gameSound.enabled);
+    syncSoundToggle();
+  };
+
   app.querySelector<HTMLButtonElement>("#theme-toggle")!.onclick = () => {
     theme = theme === "dark" ? "light" : "dark";
     try { localStorage.setItem(THEME_KEY, theme); } catch { /* 忽略 */ }
     applyTheme();
+    gameSound.play("click");
     syncThemeToggle(); // 原地更新，不重绘，输入框里没发的字还在
   };
 
@@ -500,14 +521,27 @@ function render() {
     store(SEEN_KEY, String(Date.now()));
     pending = box.id;
     save();
+    gameSound.play("send");
+    gameSound.play("decode_on");
     render();
     try {
       const d = await fetchReply(box.messages);
       const msg = subjectDecoded(d);
       box.messages.push(msg);
       if (current === box.id) freshId = msg.id;
+      // 回复到了：按置信度响不同的声音（清晰一声钟 / 发涩 / 无震动被切断）
+      gameSound.play("decode_off");
+      const conf = confOf(d.reading);
+      if (isFlat(d)) gameSound.play("flat");
+      else if (conf !== null && conf < 60) gameSound.play("reply_low");
+      else gameSound.play("reply");
+      if (conf !== null) {
+        gameSound.setConf(conf);
+        window.setTimeout(() => gameSound.setConf(90), 9000);
+      }
       void updateMemo(box);
     } finally {
+      gameSound.play("decode_off");
       pending = null;
       save();
       render();
@@ -520,7 +554,7 @@ function render() {
 
   if (freshId) {
     const el = app.querySelector<HTMLElement>("[data-fresh] .decoded");
-    if (el) reveal(el);
+    if (el) reveal(el, () => gameSound.play("type"));
     freshId = null; // later re-renders show the final text statically
   }
 
@@ -618,6 +652,7 @@ files.addEventListener("click", (e) => {
 });
 
 function openFiles() {
+  gameSound.play("click");
   memoField.value = notes;
   files.showModal();
 }
@@ -695,6 +730,8 @@ function applyResult(r: GameResult) {
 
 function enterDesk() {
   app.hidden = false;
+  gameSound.setMode("terminal"); // 序章的声音不中断，转成终端的轻氛围
+  gameSound.onChange = syncSoundToggle;
   render();
 }
 
@@ -726,7 +763,6 @@ function playGame(replay: boolean) {
         store(CLEAR_KEY, String(Date.now()));
       }
       // enter / apply 由开机过场收尾声音；其余出口直接淡出
-      if (how === "keep" || how === "skip") gameSound.stop(0.6);
       if (how === "keep") return enterDesk();
       if (how === "skip") {
         game = { scene: "", flags: {}, name: "", done: true };
@@ -745,6 +781,16 @@ function playGame(replay: boolean) {
     },
   });
 }
+
+// 终端里的第一次点击/触摸/按键：启动声音（浏览器不允许自动出声；iOS 认 touchend 和 click）
+const unlockTerminal = (ev: Event) => {
+  if (document.documentElement.classList.contains("in-game")) return; // 序章自己处理
+  if ((ev.target as HTMLElement | null)?.closest?.("#sound-toggle")) return; // 开关自己处理
+  gameSound.unlock();
+  syncSoundToggle();
+};
+for (const type of ["pointerup", "touchend", "click"]) document.addEventListener(type, unlockTerminal, true);
+document.addEventListener("keydown", unlockTerminal, true);
 
 initEffects();
 if (game?.done) {

@@ -256,6 +256,7 @@ export function mountGame(o: Opts): () => void {
     btn.textContent = soundLabel();
     btn.setAttribute("aria-pressed", String(sound.enabled));
   };
+  sound.setMode("game");
   sound.onChange = refreshSound;
   const unlock = (ev: Event) => {
     if ((ev.target as HTMLElement | null)?.closest?.(".g-snd")) return; // 声音开关自己处理
@@ -315,7 +316,7 @@ export function bootTransition(lines: string[]): Promise<void> {
     const finish = () => {
       if (done) return;
       done = true;
-      sound.stop(1.2);
+      sound.setMode("terminal"); // 声音不关，转入终端的轻氛围
       el.classList.add("out");
       setTimeout(() => { el.remove(); resolve(); }, quick ? 0 : 450);
     };

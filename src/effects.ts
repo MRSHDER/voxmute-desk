@@ -6,7 +6,7 @@ const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const GLYPHS = "▓▒░█▚▞#%&@$*+=/\\|<>01ABCDEFXZ折声震载波信号";
 
-export function reveal(el: HTMLElement) {
+export function reveal(el: HTMLElement, onTick?: () => void) {
   // Reveal line by line (".ln" children) so multi-segment replies keep their layout.
   const targets = Array.from(el.querySelectorAll<HTMLElement>(".ln:not(.gap)"));
   if (!targets.length && el.textContent) targets.push(el);
@@ -25,7 +25,7 @@ export function reveal(el: HTMLElement) {
   const tick = (ts: number) => {
     if (!el.isConnected) return; // re-rendered away; final text is in the new DOM
     if (!lastStep) lastStep = ts;
-    if (ts - lastStep >= perChar) { i++; lastStep = ts; }
+    if (ts - lastStep >= perChar) { i++; lastStep = ts; if (i % 2 === 0) onTick?.(); }
     const chars = Array.from(finals[line]);
     let out = chars.slice(0, i).join("");
     for (let j = i; j < Math.min(chars.length, i + 3); j++) {

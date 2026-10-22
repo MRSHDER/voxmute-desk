@@ -1,4 +1,4 @@
-// 序章的配乐与音效：全部用 Web Audio 实时合成，没有音频文件，声音语言和 voxmute-archive 一致
+// 序章和聊天终端的配乐与音效：全部用 Web Audio 实时合成，没有音频文件，声音语言和 voxmute-archive 一致
 // （冷色调的持续和声、磁带底噪、载波音、钟片单音）。底噪的明暗跟着每一幕的解码置信度走：越不可信，越不稳。
 // 浏览器不允许未经操作自动出声：由序章里的第一次点击（“开始”）建立并启动。
 
@@ -20,7 +20,23 @@ class GameSound {
   private closeTimer = 0;
   private holds = new Set<number>();
   enabled = true;
+  private mode: "game" | "terminal" = "game"; // 终端里更轻、更稀疏，不盖过读字
   onChange: (() => void) | null = null; // 声音状态变化（比如终于被浏览器放行）时通知界面
+
+  private padLevel() { return this.mode === "terminal" ? 0.04 : 0.07; }
+  private hissBase() { return this.mode === "terminal" ? 0.008 : 0.012; }
+  private filterBase() { return this.mode === "terminal" ? 320 : 380; }
+
+  /** 切换场合：序章 / 终端。不重建上下文，只改氛围的轻重。 */
+  setMode(mode: "game" | "terminal") {
+    this.mode = mode;
+    if (!this.ctx || this.ctx.state === "closed") return;
+    const t = this.ctx.currentTime;
+    this.padGain.gain.setTargetAtTime(this.padLevel(), t, 1.2);
+    this.hiss.gain.setTargetAtTime(this.hissBase(), t, 1.2);
+    this.padFilter.frequency.setTargetAtTime(this.filterBase(), t, 1.2);
+    this.diss.gain.setTargetAtTime(0, t, 1.2);
+  }
 
   /** 真实状态：关 / 已出声 / 想出声但还没被浏览器放行 */
   get status(): "muted" | "on" | "waiting" {
@@ -77,8 +93,8 @@ class GameSound {
 
     // 持续和声 D2 A2 C3 F3
     this.padFilter = ctx.createBiquadFilter();
-    this.padFilter.type = "lowpass"; this.padFilter.frequency.value = 380; this.padFilter.Q.value = 0.7;
-    this.padGain = ctx.createGain(); this.padGain.gain.value = 0.07;
+    this.padFilter.type = "lowpass"; this.padFilter.frequency.value = this.filterBase(); this.padFilter.Q.value = 0.7;
+    this.padGain = ctx.createGain(); this.padGain.gain.value = this.padLevel();
     this.padFilter.connect(this.padGain).connect(this.master);
     for (const f of [73.42, 110, 130.81, 174.61]) {
       for (const det of [-6, 5]) {
@@ -100,7 +116,7 @@ class GameSound {
     // 磁带底噪
     const hiss = ctx.createBufferSource(); hiss.buffer = this.noise; hiss.loop = true;
     const hf = ctx.createBiquadFilter(); hf.type = "bandpass"; hf.frequency.value = 2400; hf.Q.value = 0.5;
-    this.hiss = ctx.createGain(); this.hiss.gain.value = 0.012;
+    this.hiss = ctx.createGain(); this.hiss.gain.value = this.hissBase();
     hiss.connect(hf).connect(this.hiss).connect(this.master); hiss.start();
 
     // 载波：348 Hz 带一点颤音，平时无声，由场景拉起
@@ -164,9 +180,9 @@ class GameSound {
   setConf(conf: number) {
     if (!this.ok()) return;
     const t = this.ctx!.currentTime;
-    this.padFilter.frequency.setTargetAtTime(380 + Math.max(0, 90 - conf) * 7, t, 0.9);
+    this.padFilter.frequency.setTargetAtTime(this.filterBase() + Math.max(0, 90 - conf) * 7, t, 0.9);
     this.diss.gain.setTargetAtTime(Math.min(0.04, (Math.max(0, 70 - conf) / 25) * 0.035), t, 0.9);
-    this.hiss.gain.setTargetAtTime(0.012 + (Math.max(0, 75 - conf) / 35) * 0.02, t, 0.9);
+    this.hiss.gain.setTargetAtTime(this.hissBase() + (Math.max(0, 75 - conf) / 35) * 0.02, t, 0.9);
   }
 
   /* ---------------- 零件 ---------------- */
@@ -176,8 +192,9 @@ class GameSound {
     this.bellTimer = window.setTimeout(() => {
       if (!this.ok()) { this.bellTimer = 0; return; }
       const notes = [587.33, 698.46, 880, 1046.5, 1174.66];
-      this.bell(notes[Math.floor(Math.random() * notes.length)], 0.04);
-      this.scheduleBell(9 + Math.random() * 9);
+      const term = this.mode === "terminal";
+      this.bell(notes[Math.floor(Math.random() * notes.length)], term ? 0.022 : 0.04);
+      this.scheduleBell(term ? 20 + Math.random() * 20 : 9 + Math.random() * 9);
     }, delay * 1000);
   }
 
@@ -232,12 +249,45 @@ class GameSound {
     this.carrierOsc.frequency.linearRampToValueAtTime(to, t + up);
   }
 
+  /** 等回复时：载波拉起并轻轻抖动，回复到了再放开。 */
+  private hold(on: boolean) {
+    if (!this.ok()) return;
+    const t = this.ctx!.currentTime;
+    this.carrierGain.gain.cancelScheduledValues(t);
+    this.carrierGain.gain.setTargetAtTime(on ? 0.026 : 0, t, on ? 0.5 : 0.25);
+    this.vibAmt.gain.setTargetAtTime(on ? 7 : 1.5, t, 0.3);
+    this.carrierOsc.frequency.setTargetAtTime(on ? 362 : 348, t, 0.4);
+  }
+
   /* ---------------- 音效 ---------------- */
 
   play(name: string) {
     if (!this.ok()) return;
     const ctx = this.ctx!;
     switch (name) {
+      // —— 终端 ——
+      case "send": this.tone(900, 0.05, 0.03, { type: "triangle" }); this.tone(1350, 0.07, 0.02, { type: "triangle", at: 0.05 }); this.burst(0.02, "highpass", 3000, 0.04); break;
+      case "decode_on": this.hold(true); break;
+      case "decode_off": this.hold(false); break;
+      case "reply": this.bell(698.46, 0.035); this.swell(0.03, 0.2, 0.5, 1.2, 348, 360); break;
+      case "reply_low":
+        this.tone(233.08, 0.7, 0.03, { type: "triangle", lp: 700 }); this.tone(246.94, 0.7, 0.03, { type: "triangle", lp: 700 });
+        for (let i = 0; i < 3; i++) this.tone(900 + Math.random() * 1400, 0.03, 0.02, { type: "square", lp: 2800, at: 0.05 + i * 0.07 });
+        this.burst(0.25, "bandpass", 2800, 0.03, 1.4);
+        break;
+      case "flat": {
+        // 无震动：咔的一下，载波被切断，和声退下去一会儿
+        this.burst(0.06, "highpass", 3500, 0.2);
+        const t = ctx.currentTime;
+        this.carrierGain.gain.cancelScheduledValues(t);
+        this.carrierGain.gain.setTargetAtTime(0, t, 0.05);
+        this.padGain.gain.setTargetAtTime(this.padLevel() * 0.25, t, 0.1);
+        this.padGain.gain.setTargetAtTime(this.padLevel(), t + 2.4, 0.8);
+        break;
+      }
+      case "type": this.tone(2200, 0.012, 0.006, { type: "square", lp: 3200 }); break;
+      case "delete": this.tone(140, 0.12, 0.12, { to: 60 }); this.burst(0.08, "lowpass", 400, 0.08); break;
+      // —— 序章 ——
       case "click": this.burst(0.03, "highpass", 2500, 0.05); this.tone(660, 0.06, 0.02, { type: "triangle" }); break;
       case "tick": this.tone(1900, 0.02, 0.012, { type: "square", lp: 3000 }); break;
       case "page": this.burst(0.35, "bandpass", 1800, 0.08, 0.6); break;
@@ -260,7 +310,7 @@ class GameSound {
         // 和声被“关掉”一阵
         const t = ctx.currentTime;
         this.padGain.gain.setTargetAtTime(0.015, t + 0.05, 0.15);
-        this.padGain.gain.setTargetAtTime(0.07, t + 3.2, 0.9);
+        this.padGain.gain.setTargetAtTime(this.padLevel(), t + 3.2, 0.9);
         break;
       }
       case "glitch":
