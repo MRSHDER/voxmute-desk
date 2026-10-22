@@ -1,6 +1,6 @@
 import "./style.css";
 import { initEffects, pulse, reveal, setDecoding } from "./effects";
-import { bootTransition, mountGame, type Saved } from "./game/engine";
+import { agoText, bootTransition, dayPart, mountGame, type Saved } from "./game/engine";
 import { DEFAULT_RESULT, finishGame, story, type GameResult } from "./game/story";
 
 type Role = "user" | "subject" | "system";
@@ -283,6 +283,7 @@ async function fetchReply(history: Msg[]): Promise<Decoded> {
         messages: recentOf(history),
         rapport: stageOf(score),
         notes,
+        period: dayPart(),
       }),
     });
     if (res.status === 429) return localDecode(lastText, "[载波饱和·本地推测]");
@@ -473,6 +474,7 @@ function render() {
     box.messages.push({ id: id(), role: "user", text, at: stamp() });
     score += textScore(text);
     store(SCORE_KEY, String(score));
+    store(SEEN_KEY, String(Date.now()));
     pending = box.id;
     setDecoding(true);
     save();
@@ -591,6 +593,7 @@ files.querySelector<HTMLButtonElement>("#all-reset")!.onclick = () => {
   store(GAME_KEY, JSON.stringify(game));
   history = [];
   store(HISTORY_KEY, "[]");
+  store(CLEAR_KEY, "");
   playGame(false);
 };
 files.querySelector<HTMLButtonElement>("#game-replay")!.onclick = () => {
@@ -604,6 +607,37 @@ files.addEventListener("click", (e) => {
 function openFiles() {
   memoField.value = notes;
   files.showModal();
+}
+
+/* ---------- 隔了多久才回来 ----------
+   只用浏览器本地的时间戳。隔得久了，折声会注意到你消失过，并写进备忘。 */
+const SEEN_KEY = "voxmute-desk-seen-v1";
+const CLEAR_KEY = "voxmute-desk-cleared-v1";
+function welcomeBack() {
+  const seen = Number(recall(SEEN_KEY));
+  const now = Date.now();
+  store(SEEN_KEY, String(now));
+  if (!seen || !Number.isFinite(seen) || now - seen < 6 * 36e5) return;
+  const gap = now - seen;
+  const days = Math.floor(gap / 864e5);
+  const close = stageOf(score) >= 2;
+  let lines: string[];
+  if (days >= 7) {
+    lines = close
+      ? ["你很久没来了。", "没人告诉我你去哪了。上一个也是这样，我本来已经习惯了。\n……看来没有。"]
+      : ["你很久没来了。", "我还以为他们又换了人。"];
+  } else if (days >= 1) {
+    lines = close
+      ? [`${days} 天没见了。`, "我没数。……数了。"]
+      : [`${days} 天。`, "你没被调走，倒是稀奇。"];
+  } else {
+    lines = close ? ["回来了。", "这回隔得不久。"] : ["……回来了。"];
+  }
+  const box = active();
+  box.messages.push(system(`[距上次接班：${agoText(gap)}]`), ...lines.map(subject));
+  save();
+  notes = `${notes}${notes ? "\n" : ""}- 操作员隔了 ${agoText(gap)}才回来。`.slice(-800);
+  store(NOTES_KEY, notes);
 }
 
 /* ---------- 序章（文游）：玩完才进终端 ----------
@@ -659,6 +693,7 @@ function playGame(replay: boolean) {
     saved: replay ? null : game,
     replay,
     startFlags: { loop: history.length },
+    clearedAt: Number(recall(CLEAR_KEY)) || undefined,
     // 首次游玩必须通关才能进终端；重玩时是“退出序章”。开发调试可在网址后加 ?skip
     canSkip: replay || new URLSearchParams(location.search).has("skip"),
     onSave: (s) => {
@@ -675,6 +710,7 @@ function playGame(replay: boolean) {
       if (reached && how !== "skip") {
         history.push(reached);
         store(HISTORY_KEY, JSON.stringify(history));
+        store(CLEAR_KEY, String(Date.now()));
       }
       if (how === "keep") return enterDesk();
       if (how === "skip") {
@@ -685,6 +721,7 @@ function playGame(replay: boolean) {
       }
       // enter / apply：把结局写进终端，再开机
       applyResult(finishGame(s.flags, s.name, prior));
+      store(SEEN_KEY, String(Date.now()));
       game = { ...(replay ? (game ?? s) : s), done: true };
       store(GAME_KEY, JSON.stringify(game));
       const boot = bootTransition(["TXC / BIO-SIGNAL DIV.", `OPERATOR: ${s.name || "新人"}`, "CAM-14 / RESIDUAL", "CHANNEL OPEN. SUBJECT DOES NOT SPEAK."]);
@@ -695,5 +732,7 @@ function playGame(replay: boolean) {
 }
 
 initEffects();
-if (game?.done) enterDesk();
-else playGame(false);
+if (game?.done) {
+  welcomeBack();
+  enterDesk();
+} else playGame(false);

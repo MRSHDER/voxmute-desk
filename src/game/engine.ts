@@ -25,6 +25,7 @@ export type Opts = {
   story: Story;
   saved: Saved | null;
   replay: boolean; // 重玩：结局页给“保留现有记录 / 用这个结局重开”两个出口
+  clearedAt?: number; // 上一次通关的时间戳（毫秒），封面提示用
   startFlags?: Flags; // 新开一局时的初始标记（比如 loop：之前通关过几次）
   canSkip: boolean; // 首次游玩不给跳过（通关才能进终端）；重玩时是“退出序章”
   onSave(s: Saved): void;
@@ -42,6 +43,22 @@ export function holds(flags: Flags, conds: Cond[] = []): boolean {
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+/** 距今多久，用在“上一次通关在……”和“隔了多久才回来”。 */
+export function agoText(ms: number): string {
+  const h = ms / 36e5;
+  if (h < 1) return "不到一小时";
+  if (h < 24) return `${Math.floor(h)} 小时`;
+  const d = Math.floor(h / 24);
+  return d < 30 ? `${d} 天` : "很久";
+}
+/** 本地时钟所处的时段（只在浏览器里用，不记录地点）。 */
+export type DayPart = "night" | "morning" | "day" | "evening";
+export function dayPart(d = new Date()): DayPart {
+  const h = d.getHours();
+  return h >= 23 || h < 5 ? "night" : h < 12 ? "morning" : h < 18 ? "day" : "evening";
+}
+const hhmm = (d = new Date()) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
 export const cleanName = (s: string) => s.replace(/[\r\n\t<>&"'`{}]+/g, " ").trim().slice(0, 12);
 
 export function mountGame(o: Opts): () => void {
@@ -57,7 +74,7 @@ export function mountGame(o: Opts): () => void {
   document.documentElement.classList.add("in-game");
 
   const fill = (s: string) =>
-    esc(s.replaceAll("{name}", state.name || "新人").replaceAll("{n}", String((state.flags.loop ?? 0) + 1)));
+    esc(s.replaceAll("{name}", state.name || "新人").replaceAll("{n}", String((state.flags.loop ?? 0) + 1)).replaceAll("{clock}", hhmm()));
   const save = () => o.onSave(JSON.parse(JSON.stringify(state)));
 
   const apply = (set?: string[], add?: Flags) => {
@@ -85,6 +102,17 @@ export function mountGame(o: Opts): () => void {
   const topBar = () =>
     `<header class="g-top"><span>夜班手册 <i lang="en">NIGHT SHIFT</i></span>${o.canSkip ? `<button type="button" class="g-skip">${o.replay ? "退出序章" : "跳过序章"}</button>` : ""}</header>`;
 
+  // 用玩家本地的真实时间说一句话
+  function realTimeLine(): string {
+    const now = hhmm();
+    switch (dayPart()) {
+      case "night": return `此刻是 ${now}。你那边也是深夜，这个点读夜班手册，倒是合适。`;
+      case "morning": return `此刻是 ${now}。大早上读夜班手册……手册大概不太高兴。`;
+      case "day": return `此刻是 ${now}。大白天来上夜班，班表大概出了点问题。`;
+      default: return `此刻是 ${now}。离夜班还早，不过手册不介意。`;
+    }
+  }
+
   function cover() {
     el.className = "";
     el.innerHTML = `${topBar()}
@@ -93,7 +121,8 @@ export function mountGame(o: Opts): () => void {
         <h1>夜班手册<span lang="en">NIGHT SHIFT</span></h1>
         <p class="g-p">你是新调来的夜班监听员。第一个夜班，从交接开始。</p>
         <p class="g-hint">序章大约十分钟。你在这里的选择，会决定今晚终端里的他，怎么对你开口。<br />以下为解码记录：置信度（CONF）会随内容变化，请勿当作事实。</p>
-        ${(state.flags.loop ?? 0) > 0 ? `<p class="g-sys">这是你第 ${state.flags.loop + 1} 次接这个夜班。</p>` : ""}
+        <p class="g-hint">${realTimeLine()}</p>
+        ${(state.flags.loop ?? 0) > 0 ? `<p class="g-sys">这是你第 ${state.flags.loop + 1} 次接这个夜班${o.clearedAt ? `（上一次通关在 ${agoText(Date.now() - o.clearedAt)}前）` : ""}。</p>` : ""}
         <label class="g-name">操作员姓名 <i lang="en">NAME</i>
           <input id="g-name" maxlength="12" placeholder="新人" autocomplete="off" value="${esc(state.name)}" />
         </label>
