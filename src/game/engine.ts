@@ -110,7 +110,7 @@ export function mountGame(o: Opts): () => void {
     el.scrollTop = 0;
   }
 
-  const soundLabel = () => (sound.enabled ? "声音 开" : "声音 关");
+  const soundLabel = () => (sound.status === "muted" ? "声音 关" : sound.status === "waiting" ? "声音 点一下启用" : "声音 开");
   const topBar = () =>
     `<header class="g-top"><span>夜班手册 <i lang="en">NIGHT SHIFT</i></span><span class="g-tools"><button type="button" class="g-skip g-snd" aria-pressed="${sound.enabled}">${soundLabel()}</button>${o.canSkip ? `<button type="button" class="g-skip g-exit">${o.replay ? "退出序章" : "跳过序章"}</button>` : ""}</span></header>`;
 
@@ -239,18 +239,30 @@ export function mountGame(o: Opts): () => void {
     const t = e.target as HTMLElement;
     const snd = t.closest<HTMLButtonElement>(".g-snd");
     if (snd) {
-      sound.setEnabled(!sound.enabled);
-      snd.textContent = soundLabel();
-      snd.setAttribute("aria-pressed", String(sound.enabled));
+      // 想出声但还在等浏览器放行：这一下是“启用”，不是“关掉”
+      if (sound.status === "waiting") sound.unlock();
+      else sound.setEnabled(!sound.enabled);
+      refreshSound();
       return;
     }
     if (t.closest(".g-exit")) return o.onExit(o.replay ? "keep" : "skip", JSON.parse(JSON.stringify(state)));
     if (!t.closest("button, input, label")) el.classList.add("instant");
   });
 
-  // 第一次点击/按键：建立并启动声音（浏览器不允许自动出声）
-  const unlock = () => sound.unlock();
-  el.addEventListener("pointerup", unlock, true);
+  // 第一次点击/触摸/按键：建立并启动声音（浏览器不允许自动出声；iOS 认 touchend 和 click）
+  const refreshSound = () => {
+    const btn = el.querySelector<HTMLButtonElement>(".g-snd");
+    if (!btn) return;
+    btn.textContent = soundLabel();
+    btn.setAttribute("aria-pressed", String(sound.enabled));
+  };
+  sound.onChange = refreshSound;
+  const unlock = (ev: Event) => {
+    if ((ev.target as HTMLElement | null)?.closest?.(".g-snd")) return; // 声音开关自己处理
+    sound.unlock();
+    refreshSound();
+  };
+  for (const type of ["pointerup", "touchend", "click"]) el.addEventListener(type, unlock, true);
   document.addEventListener("keydown", unlock, true);
 
   const onKey = (e: KeyboardEvent) => {
@@ -282,6 +294,7 @@ export function mountGame(o: Opts): () => void {
   return () => {
     document.removeEventListener("visibilitychange", onVis);
     document.removeEventListener("keydown", unlock, true);
+    sound.onChange = null;
     clearSfx();
     document.removeEventListener("keydown", onKey);
     el.remove();

@@ -20,6 +20,13 @@ class GameSound {
   private closeTimer = 0;
   private holds = new Set<number>();
   enabled = true;
+  onChange: (() => void) | null = null; // 声音状态变化（比如终于被浏览器放行）时通知界面
+
+  /** 真实状态：关 / 已出声 / 想出声但还没被浏览器放行 */
+  get status(): "muted" | "on" | "waiting" {
+    if (!this.enabled) return "muted";
+    return this.ctx && this.ctx.state === "running" ? "on" : "waiting";
+  }
 
   constructor() {
     try {
@@ -34,8 +41,26 @@ class GameSound {
   }
 
   private build() {
-    const ctx = new AudioContext();
+    // iOS/Safari：声明这是“播放类”音频，否则会被静音开关拦住（Safari 16.4+）
+    try {
+      const nav = navigator as Navigator & { audioSession?: { type: string } };
+      if (nav.audioSession) nav.audioSession.type = "playback";
+    } catch {
+      /* 不支持就算了 */
+    }
+    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AC();
     this.ctx = ctx;
+    ctx.onstatechange = () => this.onChange?.();
+    // 老 Safari 的惯用解锁：在手势里播一个 1 采样点的静音
+    try {
+      const blip = ctx.createBufferSource();
+      blip.buffer = ctx.createBuffer(1, 1, 22050);
+      blip.connect(ctx.destination);
+      blip.start(0);
+    } catch {
+      /* 忽略 */
+    }
     this.master = ctx.createGain();
     this.master.gain.value = 0;
     const comp = ctx.createDynamicsCompressor();
@@ -94,7 +119,8 @@ class GameSound {
       window.clearTimeout(this.closeTimer);
       if (!this.ctx || this.ctx.state === "closed") this.build();
       const ctx = this.ctx!;
-      if (ctx.state !== "running") void ctx.resume();
+      // iOS 会把上下文置为 interrupted / suspended；每次手势都再唤醒一次，直到真正跑起来
+      if (ctx.state !== "running") void ctx.resume().then(() => this.onChange?.()).catch(() => {});
       this.master.gain.setTargetAtTime(LEVEL, ctx.currentTime, 0.6);
       if (!this.bellTimer) this.scheduleBell(7);
     } catch {
