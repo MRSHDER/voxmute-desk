@@ -9,7 +9,7 @@ export type Choice = { text: string; goto: string; set?: string[]; add?: Flags; 
 export type Scene = {
   title?: string;
   art?: string; // 道具插图，见 art.ts
-  text?: Para[]; // 以 “> ” 开头的行显示成终端引用
+  text?: Para[]; // “> ” 开头的行是终端/印刷引用，“~ ” 开头的行是手写批注
   choices?: Choice[];
   auto?: { if?: Cond[]; goto: string }[]; // 无界面的路由场景：按条件跳转
   set?: string[]; // 进入场景时：标记 +1
@@ -112,7 +112,9 @@ export function mountGame(o: Opts): () => void {
     const html = paras
       .map((p, i) => {
         const quote = p.startsWith("> ");
-        return `<p class="g-p${quote ? " g-quote" : ""}" style="animation-delay:${(i * step).toFixed(2)}s">${fill(quote ? p.slice(2) : p)}</p>`;
+        const hand = p.startsWith("~ "); // 手写批注
+        const cls = quote ? " g-quote" : hand ? " g-hand" : "";
+        return `<p class="g-p${cls}" style="animation-delay:${(i * step).toFixed(2)}s">${fill(quote || hand ? p.slice(2) : p)}</p>`;
       })
       .join("");
     const after = `style="animation-delay:${(paras.length * step + 0.1).toFixed(2)}s"`;

@@ -113,6 +113,15 @@ export const ART: Record<string, string> = {
     <circle class="k" cx="117" cy="76" r="1.3"/><circle class="k" cx="123" cy="80" r="1.3"/>
     <path class="a" d="M22 58H84M76 50L84 58L76 66"/>`),
 
+  switch: svg(`
+    <path class="m" d="M16 112H224"/>
+    <rect class="f" x="96" y="14" width="48" height="84" rx="4"/>
+    <rect class="l" x="108" y="30" width="24" height="52" rx="3"/>
+    <path class="f" d="M110 34H130V54H110Z"/>
+    <path class="m" d="M30 24H80M26 36H70M160 24H210M168 36H214"/>
+    <circle class="r" cx="186" cy="80" r="3.5"/>
+    <path class="m" d="M170 80H178M194 80H202"/>`),
+
   cookie_wave: svg(`
     <circle class="f" cx="120" cy="60" r="26"/>
     <circle class="k" cx="110" cy="52" r="2"/><circle class="k" cx="128" cy="56" r="2"/><circle class="k" cx="118" cy="70" r="2"/><circle class="k" cx="132" cy="70" r="1.8"/><circle class="k" cx="108" cy="66" r="1.8"/>

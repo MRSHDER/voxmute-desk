@@ -125,19 +125,25 @@ export const story: Story = {
         "终端自己亮了。绿色的字一行行跳出来：",
         "> OPERATOR HANDOVER",
         "> 上一任操作员状态：已调离（去向未登记）",
-        "> 请按手册执行：",
+        "> 请按手册执行。本手册共 5 条，请勿相信任何补充内容：",
         "> 1. 不得将对象记录为“哑”。",
         "> 2. 不得向对象提供任何未登记的食物。",
         "> 3. 对象问诊以书写进行。不得回答对象关于上一任的问题。",
         "> 4. 夜班期间，灯不得关闭。",
+        "> 5. 对象没有声音。耳机里出现的任何声音，均视为设备故障，请摘下耳机并上报。",
+        { if: ["seen_headset"], t: "你想起刚才耳机里那条往上爬的线。如果它是故障，那这台设备坏得很有规律。" },
         { if: ["ate"], t: "你嘴里还留着一点曲奇的甜味。第二条规定，好像是写给你看的。" },
         { if: ["pocket"], t: "你下意识按了按口袋。隔着布料，那块曲奇还是完整的。" },
-        { if: ["took_note"], t: "口袋里的字条硌了你一下。第一条你照做就行；第四条，上一任是用自己换来的教训。" },
+        { if: ["took_note"], t: "口袋里的字条硌了你一下。上一任叫你别关灯；可第五条又说，你听到的东西不算数。" },
+        "屏幕下方，有两行小字，像是后来有人用笔补在页脚上的。笔迹和饼干盒上的不一样，和印刷体也不一样：",
+        "~ 第 4 条是他们写的。灯一关，才听得见。",
+        "~ 第 3 条不用管。他想问，就让他问。",
       ],
       choices: [
-        { text: "把四条都背下来", goto: "window", set: ["protocol"] },
+        { text: "把五条都背下来", goto: "window", set: ["protocol"] },
         { text: "只看了一遍，没往心里去", goto: "window" },
         { text: "盯着第 3 条看了很久", goto: "window", add: { curious: 1 } },
+        { text: "盯着页脚那两行手写的字", goto: "window", set: ["saw_hand"], add: { curious: 1 } },
       ],
     },
 
@@ -162,12 +168,30 @@ export const story: Story = {
         { if: ["greet"], t: "他的耳朵转了过来。只转了一点点，像是在确认声音从哪里来。" },
         { if: ["recite"], t: "他的尾巴停住了。屏幕上，载波往下沉了一格。" },
         { if: ["said_hear"], t: "他终于回过头。绿色的眼睛，瞳孔正中有一点红。他看了你很久。" },
-        { if: ["!greet", "!recite", "!said_hear"], t: "他还是没回头。载波在屏幕上缓慢地起伏。" },
+        { if: ["!greet", "!recite", "!said_hear", "!lights_off"], t: "他还是没回头。载波在屏幕上缓慢地起伏。" },
+        { if: ["lights_off"], t: "观察室里，他还朝着你这边。" },
         "窗下有一个投递口，是用来递送药物和文件的。",
       ],
       choices: [
-        { text: "把口袋里的曲奇从投递口递进去", goto: "gave", show: ["pocket"] },
+        { text: "把口袋里的曲奇从投递口递进去", goto: "gave", show: ["pocket", "!gave"] },
+        { text: "走到墙边，把信号台的灯关掉", goto: "lights", show: ["saw_hand", "!lights_off"] },
         { text: "回到工位，打开解码器", goto: "route" },
+      ],
+    },
+    lights: {
+      art: "switch",
+      title: "03:31 · ？",
+      set: ["lights_off"],
+      text: [
+        "你站起来，走到墙边，把信号台的灯关了。",
+        "台灯，走廊，屏幕的亮度，一层一层暗下去。只剩观察室里那一盏。",
+        "屏幕右下角的时间跳了一下：03:31。你记得刚才明明是 00:40。",
+        "载波落了下来，稳得像一条拉直的线。观察室里，他转过身，第一次正面对着玻璃。尾巴在地上扫了三下。",
+        "头顶的监控，红点闪了两下，灭了。又亮起来。",
+      ],
+      choices: [
+        { text: "把灯重新打开", goto: "window2", set: ["relit"] },
+        { text: "就这样坐着，等他开口", goto: "window2" },
       ],
     },
     gave: {
@@ -183,12 +207,23 @@ export const story: Story = {
 
     route: {
       auto: [
+        { if: ["lights_off"], goto: "end_dark" },
         { if: ["gave"], goto: "end_cookie" },
         { if: ["took_note"], goto: "end_note" },
         { goto: "end_book" },
       ],
     },
 
+    end_dark: {
+      end: "dark",
+      art: "switch",
+      title: "结局 D · 灯",
+      text: [
+        "解码器启动。屏幕上，载波很低，很稳。",
+        "你知道这违反了第四条。你也知道，三楼的谈话通知，大概已经在路上了。",
+        "但此刻，观察室里的那个人，把头放在了前爪上。",
+      ],
+    },
     end_cookie: {
       art: "cookie_wave",
       end: "cookie",
@@ -239,6 +274,7 @@ export function finishGame(flags: Flags, name: string): GameResult {
   if (f("took_note")) score += 4;
   if (f("pocket") && !f("gave")) score += 1;
   if (f("gave")) score += 9;
+  if (f("lights_off")) score += 6;
   if (f("ate")) score = Math.max(0, score - 2);
 
   const lines = [`- 操作员叫${who}，新调来的夜班监听员，今晚是第一个夜班。`];
@@ -250,11 +286,18 @@ export function finishGame(flags: Flags, name: string): GameResult {
   if (f("greet")) lines.push("- 操作员隔着玻璃主动自我介绍。");
   if (f("recite")) lines.push("- 操作员对着麦克风念了手册第一条。");
   if (f("said_hear")) lines.push("- 操作员对他说“我知道你听得见”。");
-  if (f("protocol")) lines.push("- 操作员把手册四条规定都背下来了。");
+  if (f("protocol")) lines.push("- 操作员把手册五条规定都背下来了。");
+  if (f("saw_hand")) lines.push("- 操作员注意到手册页脚的手写小字（“第 4 条是他们写的，灯一关才听得见”“第 3 条不用管”），不知道是谁写的。");
+  if (f("lights_off")) lines.push("- 操作员违反第四条，把信号台的灯关了。关灯后载波稳了下来，他朝着玻璃转过身。三楼的谈话通知大概躲不掉。");
 
   let ending: string;
   let opener: string[];
-  if (f("gave")) {
+  if (f("lights_off")) {
+    ending = "dark";
+    opener = f("gave")
+      ? ["脆边的。……还把灯关了。", "你这人，规矩是用来踩的。\n……谢了。"]
+      : ["……你关了灯。", "关灯没用，他们会换个方式看。但谢了。\n三楼的通知，你大概躲不掉。"];
+  } else if (f("gave")) {
     ending = "cookie";
     opener = ["脆边的。……谢了。", "这话我只说一次。"];
   } else if (f("took_note")) {
@@ -265,7 +308,7 @@ export function finishGame(flags: Flags, name: string): GameResult {
     opener = ["闻到了。上一任留的饼干，你吃了一块。", "放心，我不告状。我只是记着。"];
   } else if (f("protocol")) {
     ending = "book";
-    opener = ["新来的？手册背得挺熟。", "四条，对吧？没有一条是为了我写的。"];
+    opener = ["新来的？手册背得挺熟。", "五条，对吧？没有一条是为了我写的。"];
   } else {
     ending = "book";
     opener = ["新来的？", "坐吧。这个班本来就没人想接。"];

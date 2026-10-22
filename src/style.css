@@ -618,3 +618,16 @@ html.in-game #bgwave { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .g-art .l, .g-art .m, .g-art .a, .g-art .f { stroke-dasharray: none; stroke-dashoffset: 0; animation: none; }
 }
+
+/* 手写批注：和印刷体、和终端都不是同一个人的笔迹 */
+.g-hand {
+  font-family: "Kaiti SC", "STKaiti", "KaiTi", "楷体", var(--serif);
+  font-size: 18px;
+  color: var(--star);
+  padding-left: 14px;
+  margin-bottom: 6px;
+  border-left: 1px dashed var(--star);
+  transform: rotate(-0.6deg);
+  transform-origin: left center;
+}
+.g-quote + .g-p:not(.g-quote), .g-hand + .g-p:not(.g-hand) { margin-top: 16px; }
