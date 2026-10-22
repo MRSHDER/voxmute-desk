@@ -8,6 +8,7 @@ export const story: Story = {
   start: "arrive",
   scenes: {
     arrive: {
+      sfx: ["beep"],
       conf: 93,
       art: "door",
       title: "23:41 · 海川研究区域",
@@ -23,6 +24,7 @@ export const story: Story = {
       ],
     },
     cam: {
+      sfx: ["camera"],
       conf: 85,
       art: "camera",
       text: ["镜头对着你。红点亮了两秒，又暗下去。", "你不知道它是在看你，还是在看你身后的什么。"],
@@ -48,6 +50,7 @@ export const story: Story = {
     },
 
     cookies: {
+      sfx: ["rustle"],
       conf: 88,
       art: "cookies",
       set: ["seen_cookie", "looked"],
@@ -56,13 +59,14 @@ export const story: Story = {
         "盒盖内侧有一行手写的字，写得很潦草：“给 14 号。别全给。”",
       ],
       choices: [
-        { text: "拿一块，放进口袋", goto: "desk", set: ["pocket"] },
-        { text: "自己吃一块", goto: "desk", set: ["ate"] },
+        { text: "拿一块，放进口袋", goto: "desk", set: ["pocket"], sfx: ["rustle"] },
+        { text: "自己吃一块", goto: "desk", set: ["ate"], sfx: ["crunch"] },
         { text: "原样放好，不碰", goto: "desk", set: ["left"] },
       ],
     },
 
     drawer: {
+      sfx: ["key"],
       conf: 72,
       art: "drawer",
       set: ["seen_drawer", "looked"],
@@ -73,6 +77,7 @@ export const story: Story = {
       ],
     },
     drawer_open: {
+      sfx: ["drawer"],
       conf: 70,
       art: "drawer_open",
       text: [
@@ -86,6 +91,7 @@ export const story: Story = {
       ],
     },
     log: {
+      sfx: ["page"],
       conf: 63,
       art: "log",
       set: ["read_log"],
@@ -103,6 +109,7 @@ export const story: Story = {
       choices: [{ text: "合上日志", goto: "drawer_open" }],
     },
     note: {
+      sfx: ["rustle"],
       conf: 57,
       art: "note",
       set: ["read_note"],
@@ -114,12 +121,13 @@ export const story: Story = {
         { if: ["loop>=1"], t: "~ 这是第 {n} 次了。" },
       ],
       choices: [
-        { text: "收进口袋", goto: "drawer_open", set: ["took_note"], add: { curious: 2 } },
+        { text: "收进口袋", goto: "drawer_open", set: ["took_note"], add: { curious: 2 }, sfx: ["rustle"] },
         { text: "放回去", goto: "drawer_open" },
       ],
     },
 
     headset: {
+      sfx: ["carrierUp"],
       conf: 52,
       art: "headset",
       set: ["seen_headset", "looked"],
@@ -132,6 +140,7 @@ export const story: Story = {
     },
 
     briefing: {
+      sfx: ["terminal"],
       conf: 76,
       art: "briefing",
       title: "00:15 · 交接",
@@ -162,6 +171,7 @@ export const story: Story = {
     },
 
     window: {
+      sfx: [{ name: "knock", at: 2 }],
       conf: 68,
       art: "window",
       title: "00:30 · 观察室",
@@ -195,6 +205,7 @@ export const story: Story = {
       ],
     },
     lights: {
+      sfx: ["switch", { name: "glitch", at: 2 }, { name: "steady", at: 3 }, { name: "blip2", at: 4 }],
       conf: 41,
       art: "switch",
       title: "03:31 · ？",
@@ -213,6 +224,7 @@ export const story: Story = {
       ],
     },
     gave: {
+      sfx: ["hatch"],
       conf: 87,
       art: "hatch",
       set: ["gave"],
@@ -234,6 +246,7 @@ export const story: Story = {
     },
 
     end_dark: {
+      sfx: ["end_dark"],
       conf: 47,
       end: "dark",
       art: "switch",
@@ -245,6 +258,7 @@ export const story: Story = {
       ],
     },
     end_cookie: {
+      sfx: ["end_warm"],
       conf: 92,
       art: "cookie_wave",
       end: "cookie",
@@ -255,6 +269,7 @@ export const story: Story = {
       ],
     },
     end_note: {
+      sfx: ["end_note"],
       conf: 66,
       art: "note",
       end: "note",
@@ -265,6 +280,7 @@ export const story: Story = {
       ],
     },
     end_book: {
+      sfx: ["end_flat"],
       conf: 81,
       art: "manual",
       end: "book",

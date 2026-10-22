@@ -1,14 +1,17 @@
 import { ART } from "./art";
+import { gameSound as sound } from "./sound";
 
 // 一个很小的文游引擎：场景、选项、标记（flags）、条件显示。故事本身在 story.ts，改文字不用碰这里。
 
 export type Flags = Record<string, number>;
 export type Cond = string; // "flag" 有 · "!flag" 没有 · "flag>=2" 至少 2
 export type Para = string | { if: Cond[]; t: string };
-export type Choice = { text: string; goto: string; set?: string[]; add?: Flags; show?: Cond[] };
+export type Sfx = string | { name: string; at: number }; // at：第几段出现时响（缺省为进入时）
+export type Choice = { text: string; goto: string; set?: string[]; add?: Flags; show?: Cond[]; sfx?: string[] };
 export type Scene = {
   title?: string;
   art?: string; // 道具插图，见 art.ts
+  sfx?: Sfx[]; // 进入这一幕时的音效，见 sound.ts
   conf?: number; // 这一幕的“解码置信度”，显示成顶部读数；越低越不可信（默认 90）
   text?: Para[]; // “> ” 开头的行是终端/印刷引用，“~ ” 开头的行是手写批注
   choices?: Choice[];
@@ -82,6 +85,14 @@ export function mountGame(o: Opts): () => void {
     for (const [k, v] of Object.entries(add ?? {})) state.flags[k] = (state.flags[k] ?? 0) + v;
   };
 
+  // 本幕里还没响的音效；换幕时清掉，免得上一幕的声音落到下一幕
+  let sfxTimers: number[] = [];
+  const clearSfx = () => { sfxTimers.forEach((t) => window.clearTimeout(t)); sfxTimers = []; };
+  const later = (name: string, ms: number) => {
+    if (ms <= 0) return sound.play(name);
+    sfxTimers.push(window.setTimeout(() => sound.play(name), ms));
+  };
+
   function enter(id: string) {
     let cur = id;
     for (let guard = 0; guard < 20; guard++) {
@@ -99,8 +110,9 @@ export function mountGame(o: Opts): () => void {
     el.scrollTop = 0;
   }
 
+  const soundLabel = () => (sound.enabled ? "声音 开" : "声音 关");
   const topBar = () =>
-    `<header class="g-top"><span>夜班手册 <i lang="en">NIGHT SHIFT</i></span>${o.canSkip ? `<button type="button" class="g-skip">${o.replay ? "退出序章" : "跳过序章"}</button>` : ""}</header>`;
+    `<header class="g-top"><span>夜班手册 <i lang="en">NIGHT SHIFT</i></span><span class="g-tools"><button type="button" class="g-skip g-snd" aria-pressed="${sound.enabled}">${soundLabel()}</button>${o.canSkip ? `<button type="button" class="g-skip g-exit">${o.replay ? "退出序章" : "跳过序章"}</button>` : ""}</span></header>`;
 
   // 用玩家本地的真实时间说一句话
   function realTimeLine(): string {
@@ -196,9 +208,20 @@ export function mountGame(o: Opts): () => void {
       if (!reduced()) n.style.animationDelay = `${(i * 0.06).toFixed(2)}s`;
     });
 
+    // 声音：氛围跟着置信度走，场景音效按段落出现的节奏响，终端引用行有轻轻的打字声
+    clearSfx();
+    sound.setConf(conf);
+    for (const s of sc.sfx ?? []) {
+      const name = typeof s === "string" ? s : s.name;
+      later(name, (typeof s === "string" ? 0 : s.at) * step * 1000);
+    }
+    paras.forEach((p, i) => p.startsWith("> ") && later("tick", i * step * 1000));
+
     el.querySelectorAll<HTMLButtonElement>("[data-i]").forEach((b) => {
       b.onclick = () => {
         const c = sc.choices![Number(b.dataset.i)];
+        sound.play("click");
+        (c.sfx ?? []).forEach((n) => sound.play(n));
         apply(c.set, c.add);
         enter(c.goto);
       };
@@ -214,9 +237,21 @@ export function mountGame(o: Opts): () => void {
 
   el.addEventListener("click", (e) => {
     const t = e.target as HTMLElement;
-    if (t.closest(".g-skip")) return o.onExit(o.replay ? "keep" : "skip", JSON.parse(JSON.stringify(state)));
+    const snd = t.closest<HTMLButtonElement>(".g-snd");
+    if (snd) {
+      sound.setEnabled(!sound.enabled);
+      snd.textContent = soundLabel();
+      snd.setAttribute("aria-pressed", String(sound.enabled));
+      return;
+    }
+    if (t.closest(".g-exit")) return o.onExit(o.replay ? "keep" : "skip", JSON.parse(JSON.stringify(state)));
     if (!t.closest("button, input, label")) el.classList.add("instant");
   });
+
+  // 第一次点击/按键：建立并启动声音（浏览器不允许自动出声）
+  const unlock = () => sound.unlock();
+  el.addEventListener("pointerup", unlock, true);
+  document.addEventListener("keydown", unlock, true);
 
   const onKey = (e: KeyboardEvent) => {
     if (!/^[1-9]$/.test(e.key) || (e.target as HTMLElement).tagName === "INPUT") return;
@@ -246,6 +281,8 @@ export function mountGame(o: Opts): () => void {
   draw();
   return () => {
     document.removeEventListener("visibilitychange", onVis);
+    document.removeEventListener("keydown", unlock, true);
+    clearSfx();
     document.removeEventListener("keydown", onKey);
     el.remove();
     document.documentElement.classList.remove("in-game");
@@ -261,9 +298,11 @@ export function bootTransition(lines: string[]): Promise<void> {
     document.body.append(el);
     const quick = reduced();
     let done = false;
+    sound.play("boot");
     const finish = () => {
       if (done) return;
       done = true;
+      sound.stop(1.2);
       el.classList.add("out");
       setTimeout(() => { el.remove(); resolve(); }, quick ? 0 : 450);
     };

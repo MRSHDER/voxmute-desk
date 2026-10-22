@@ -1,6 +1,7 @@
 import "./style.css";
 import { initEffects, reveal } from "./effects";
 import { agoText, bootTransition, dayPart, mountGame, type Saved } from "./game/engine";
+import { gameSound } from "./game/sound";
 import { DEFAULT_RESULT, finishGame, story, type GameResult } from "./game/story";
 
 type Role = "user" | "subject" | "system";
@@ -708,6 +709,8 @@ function playGame(replay: boolean) {
         store(HISTORY_KEY, JSON.stringify(history));
         store(CLEAR_KEY, String(Date.now()));
       }
+      // enter / apply 由开机过场收尾声音；其余出口直接淡出
+      if (how === "keep" || how === "skip") gameSound.stop(0.6);
       if (how === "keep") return enterDesk();
       if (how === "skip") {
         game = { scene: "", flags: {}, name: "", done: true };

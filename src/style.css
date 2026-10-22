@@ -452,6 +452,7 @@ dialog#files::backdrop { background: rgba(10, 11, 12, 0.55); }
   color: var(--ink-soft);
 }
 .g-top i, .g-choices i, .g-cover h1 span, .g-name i { font-style: normal; }
+.g-tools { display: flex; gap: 8px; }
 .g-skip {
   background: transparent;
   border: 1px solid var(--ink-soft);
