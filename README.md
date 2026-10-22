@@ -21,10 +21,12 @@ npm run dev
 
 ## 画面
 
+视觉沿用 voxmute-archive 的档案风格：冷灰纸、墨色、衬线体、中英双语标签；失声是红色印章，信号波形只出现在深色监视器条里。
+
 - 左侧是观察日志，可新开一条
 - 右侧是信号台：`VOICE NULL` / `CARRIER ON`
 - Enter 发送，Shift+Enter 换行
 
-头像位现在是 `VM` 标记。以后把胸像放到 `public/voxmute-card.webp`，再在界面里引用即可。
+头像是 `public/voxmute-avatar.webp`（取自 [voxmute-archive](https://github.com/MRSHDER/voxmute-archive) 的半身像 `voxmute-card.webp`，裁成 320×320）。
 
 Art by MRSHDER · Character Design by Goose hair

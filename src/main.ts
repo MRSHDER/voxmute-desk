@@ -21,6 +21,8 @@ type Session = {
 };
 
 const KEY = "voxmute-desk-v1";
+const AVATAR = `${import.meta.env.BASE_URL}voxmute-avatar.webp`;
+const portrait = (extra = "") => `<div class="portrait${extra}"><img src="${AVATAR}" alt="折声 VoxMute" width="56" height="56" decoding="async" /></div>`;
 
 // Proxy URL is public (the model key lives only in Vercel env vars). VITE_API_URL overrides it.
 const DEFAULT_API = "https://voxmute-proxy.vercel.app/api/chat";
@@ -209,7 +211,7 @@ function drawTrace(canvas: HTMLCanvasElement, seedN: number) {
   const w = (canvas.width = canvas.clientWidth * 2);
   const h = (canvas.height = 56);
   ctx.clearRect(0, 0, w, h);
-  ctx.strokeStyle = "#d6ff3a";
+  ctx.strokeStyle = "#c6e03a";
   ctx.lineWidth = 2;
   ctx.beginPath();
   for (let x = 0; x < w; x += 4) {
@@ -225,7 +227,7 @@ function render() {
     <aside>
       <div class="brand">
         <small>TXC / BIO-SIGNAL DIV.</small>
-        <strong>SIGNAL DESK</strong>
+        <strong>信号台<span lang="en">SIGNAL DESK</span></strong>
       </div>
       <div class="sessions">
         ${sessions
@@ -238,48 +240,53 @@ function render() {
           )
           .join("")}
       </div>
-      <button class="new-log" id="new-log">NEW LOG</button>
+      <button class="new-log" id="new-log">新建记录<span lang="en">NEW LOG</span></button>
     </aside>
     <main>
       <header class="desk">
         <div class="who">
-          <div class="mark">VM</div>
+          ${portrait()}
           <div>
-            <div>VoxMute / <em>折声</em></div>
+            <b>折声 <em>VoxMute</em></b>
             <small>Non-verbal Signal Subject · ${s.bay}</small>
           </div>
         </div>
         <div class="flags">
-          <span class="flag warn">VOICE NULL</span>
-          <span class="flag on">CARRIER ON</span>
-          <span class="flag ${API ? "on" : ""}">${API ? "LINK ON" : "LOCAL ONLY"}</span>
+          <span class="flag warn"><span>无声</span>VOICE NULL</span>
+          <span class="flag on"><span>载波</span>CARRIER ON</span>
+          <span class="flag ${API ? "on" : ""}"><span>${API ? "链路" : "离线"}</span>${API ? "LINK ON" : "LOCAL ONLY"}</span>
         </div>
       </header>
       <div id="log">
         <div class="handover" role="note">[夜班交接 · 上一位操作员：失联]</div>
         ${s.messages
           .map((m) => {
-            const label = m.role === "user" ? "OPERATOR" : m.role === "subject" ? "SUBJECT" : "DESK";
-            return `
-            <article class="msg ${m.role}"${m.id === freshId ? " data-fresh" : ""}>
+            const label = m.role === "user" ? "操作员 OPERATOR" : m.role === "subject" ? "对象 SUBJECT" : "信号台 DESK";
+            const body = `
               <div class="meta">${label} ${m.at}</div>
               ${m.decoded ? renderDecoded(m.decoded) : `<div class="bubble">${escapeHtml(m.text)}</div>`}
-              ${m.role === "subject" && !(m.decoded && isFlat(m.decoded)) ? `<canvas class="trace" data-seed="${m.id.length}"></canvas>` : ""}
+              ${m.role === "subject" && !(m.decoded && isFlat(m.decoded)) ? `<canvas class="trace" data-seed="${m.id.length}"></canvas>` : ""}`;
+            return `
+            <article class="msg ${m.role}"${m.id === freshId ? " data-fresh" : ""}>
+              ${m.role === "subject" ? `${portrait()}<div>${body}</div>` : body}
             </article>`;
           })
           .join("")}
         ${
           pending === s.id
             ? `<article class="msg subject decoding" aria-live="polite">
-              <div class="meta">SUBJECT ${stamp()}</div>
-              <div class="bubble decoder"><span class="wave"><i></i><i></i><i></i><i></i><i></i></span> DECODING…</div>
+              ${portrait()}
+              <div>
+                <div class="meta">对象 SUBJECT ${stamp()}</div>
+                <div class="bubble decoder"><span class="wave"><i></i><i></i><i></i><i></i><i></i></span> 解码中 DECODING…</div>
+              </div>
             </article>`
             : ""
         }
       </div>
       <form id="composer">
         <textarea id="draft" placeholder="写入观察。对方不会回话，解码器只读声带残端的震动。"></textarea>
-        <button class="send" type="submit" ${pending ? "disabled" : ""}>${pending ? "DECODING" : "SEND"}</button>
+        <button class="send" type="submit" ${pending ? "disabled" : ""}>${pending ? "解码中" : "发送"}<span lang="en">${pending ? "DECODING" : "SEND"}</span></button>
         <div class="note">Enter 发送 · Shift+Enter 换行 · ${API ? "回复是声带残端震动的解码推测，CONF 低于 60% 时文本不可靠" : "离线：震动解码为本地推测"}</div>
       </form>
     </main>

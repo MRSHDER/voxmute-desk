@@ -1,26 +1,9 @@
-// Zero-dependency visual effects: CRT overlay, background vibration waveform,
+// Zero-dependency visual effects: paper-grain overlay, background vibration waveform,
 // and decoded-text reveal.
 
 export type Decoded = { reading: string; text: string; note: string };
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-/* ---------------- 1) CRT scanlines + noise ---------------- */
-
-function makeNoiseTile(size = 96): string {
-  const c = document.createElement("canvas");
-  c.width = c.height = size;
-  const ctx = c.getContext("2d");
-  if (!ctx) return "";
-  const img = ctx.createImageData(size, size);
-  for (let i = 0; i < img.data.length; i += 4) {
-    const v = Math.random() * 255;
-    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
-    img.data[i + 3] = 255;
-  }
-  ctx.putImageData(img, 0, 0);
-  return c.toDataURL("image/png");
-}
 
 /* ---------------- 2) background waveform ---------------- */
 
@@ -42,7 +25,7 @@ const wave = {
   modeUntil: 0,
   raf: 0,
   last: 0,
-  color: "214,255,58",
+  color: "27,29,34", // ink, drawn faintly over the paper
 };
 
 function resize() {
@@ -82,7 +65,7 @@ function drawWave(dt: number) {
   const A = wave.amp * h;
   const step = w < 500 ? 4 : 3;
   ctx.lineWidth = 1.5;
-  ctx.strokeStyle = `rgba(${wave.color},0.32)`;
+  ctx.strokeStyle = `rgba(${wave.color},0.16)`;
   ctx.beginPath();
   for (let x = 0; x <= w; x += step) {
     const u = x / w;
@@ -97,7 +80,7 @@ function drawWave(dt: number) {
   }
   ctx.stroke();
   // faint baseline
-  ctx.strokeStyle = `rgba(${wave.color},0.07)`;
+  ctx.strokeStyle = `rgba(${wave.color},0.06)`;
   ctx.beginPath();
   ctx.moveTo(0, mid);
   ctx.lineTo(w, mid);
@@ -213,8 +196,6 @@ export function initEffects() {
   const crt = document.createElement("div");
   crt.className = "crt";
   crt.setAttribute("aria-hidden", "true");
-  const noise = makeNoiseTile();
-  if (noise) crt.style.setProperty("--noise", `url(${noise})`);
   document.body.prepend(bg);
   document.body.append(crt);
 
