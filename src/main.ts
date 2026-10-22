@@ -37,8 +37,8 @@ const seed = (): Session[] => [
     bay: "CAM-03 / NIGHT WATCH",
     messages: [
       system("CHANNEL OPEN. SUBJECT DOES NOT SPEAK."),
-      subject("……"),
-      subject("载波还在。不要等句子。"),
+      subject("新来的？"),
+      subject("坐吧。这个班本来就没人想接。"),
     ],
   },
   {
@@ -47,7 +47,7 @@ const seed = (): Session[] => [
     bay: "CAM-14 / RESIDUAL",
     messages: [
       system("ROOM MIC LIVE. VOICE CHANNEL NULL."),
-      subject("灯关了也还在。"),
+      subject("房间的麦一直开着。\n你说的每一句，它都替你记着。"),
     ],
   },
 ];
@@ -128,27 +128,42 @@ function active() {
 
 function replyTo(input: string): string[] {
   const q = input.toLowerCase();
-  if (/名字|是谁|who|vox|折声/.test(q)) {
-    return ["VoxMute。", "折声。档案上就这两行。"];
+  if (/名字|是谁|你是|who|vox|折声/.test(q)) {
+    return ["VoxMute。档案上写的是折声，你爱叫哪个都行。\n倒是你，新来的吧？"];
   }
-  if (/说话|声音|voice|说/.test(q)) {
-    return ["VOICE FUNCTION SEVERED", "嘴能动。出去的那条断了。"];
+  if (/说话|声音|voice|嗓|哑/.test(q)) {
+    return ["嘴能动，出去的那条线断了。\n不过你现在不就是在听我说话吗？只是不用耳朵。"];
   }
-  if (/信号|signal|听/.test(q)) {
-    return ["SIGNAL STILL ACTIVE", "房间麦能收到。不要把它写成话。"];
+  if (/饼干|曲奇|cookie/.test(q)) {
+    return ["……你带了？\n别误会，我只是想知道你有没有诚意。"];
   }
-  if (/疼|痛|hurt|还好/.test(q)) {
-    return ["体征平稳。", "这个问题没有出口。"];
+  if (/猫|狗|小动物|宠物/.test(q)) {
+    return ["它们比人安静，也比人诚实。\n你养过吗？"];
   }
-  if (/你好|hello|hi|在吗/.test(q)) {
-    return ["在。", "不是用声音在。"];
+  if (/上一[个任位]|前任|失联|失踪/.test(q)) {
+    return ["他走得很急，饼干都没吃完。\n问我之前，先想想你为什么坐在这把椅子上。"];
+  }
+  if (/怕|害怕|恐惧/.test(q)) {
+    return ["灯一直亮着，一直有人盯着，我早习惯了。\n倒是你，手心出汗了吧。"];
+  }
+  if (/出去|逃|自由|门/.test(q)) {
+    return ["想。但我不急。\n急的人会被抓回来，我试过一次了。"];
+  }
+  if (/疼|痛|hurt|还好|没事/.test(q)) {
+    return ["伤口早就长好了。\n你这句是真想问，还是写在手册上的？"];
+  }
+  if (/你好|hello|hi|在吗|嗨/.test(q)) {
+    return ["在。不然我还能去哪。\n你呢，第一个夜班，感觉怎么样？"];
+  }
+  if (/无聊|闲|困|累/.test(q)) {
+    return ["无聊是这里唯一管够的东西。\n讲点有意思的给我听，上一个人讲的都很无聊。"];
   }
   const pool = [
-    "收到。不回答。",
-    "载波偏移了一下。",
-    "不要提示语。",
-    "还在。",
-    "这条不进语音通道。",
+    "你说的这个……我得想想。\n夜班很长，我有时间。",
+    "有意思。接着说，我在听。\n反正我也只能听。",
+    "你这个问法，像是刚从培训手册里翻出来的。\n换个自己的。",
+    "嗯。\n你要是想聊别的，直接说，不用绕。",
+    "这条我先记下了。\n你呢，打算一直这样问下去？",
   ];
   return [pool[input.length % pool.length]];
 }
@@ -162,7 +177,7 @@ function localDecode(input: string, note: string): Decoded {
   // replyTo() gives an optional English status + short Chinese lines; render them as segments
   const text = replyTo(input).join("\n\n");
   return {
-    reading: `FREQ ${rand(30, 110)}Hz · AMP LOW · CONF ${rand(28, 55)}%`,
+    reading: `FREQ ${rand(55, 100)}Hz · AMP LOW · CONF ${rand(72, 92)}%`,
     text,
     note,
   };
@@ -320,7 +335,7 @@ function render() {
         }
       </div>
       <form id="composer">
-        <textarea id="draft" placeholder="写入观察。对方不会回话，解码器只读声带残端的震动。"></textarea>
+        <textarea id="draft" placeholder="对他说点什么。声带断了，但他听得见，也会回你。"></textarea>
         <button class="send" type="submit" ${pending ? "disabled" : ""}>${pending ? "解码中" : "发送"}<span lang="en">${pending ? "DECODING" : "SEND"}</span></button>
         <div class="note">Enter 发送 · Shift+Enter 换行 · ${API ? "回复是声带残端震动的解码推测，CONF 低于 60% 时文本不可靠" : "离线：震动解码为本地推测"}</div>
       </form>

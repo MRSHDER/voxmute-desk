@@ -333,9 +333,9 @@ button.send:disabled { opacity: 0.55; cursor: wait; }
 .decoded.lowconf { animation: lowconf 2.6s steps(1, end) infinite; filter: blur(0.6px); opacity: 0.8; }
 @keyframes lowconf {
   0%, 100% { filter: blur(0.6px); opacity: 0.8; transform: none; }
-  18% { filter: blur(1.8px); opacity: 0.45; transform: translateX(1px); }
+  18% { filter: blur(1.2px); opacity: 0.6; transform: translateX(1px); }
   22% { filter: blur(0.4px); opacity: 0.9; transform: none; }
-  61% { filter: blur(1.2px); opacity: 0.55; transform: translateX(-1px); }
+  61% { filter: blur(0.9px); opacity: 0.65; transform: translateX(-1px); }
   64% { filter: blur(0.6px); opacity: 0.85; transform: none; }
 }
 .dnote { margin-top: 6px; color: var(--ink-soft); font: 12px/1.6 var(--mono); }
