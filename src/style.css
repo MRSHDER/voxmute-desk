@@ -121,6 +121,24 @@ aside {
 
 .sessions { flex: 1; overflow: auto; padding: 10px; }
 
+.session-row { position: relative; }
+.session-del {
+  position: absolute;
+  top: 8px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--dim);
+  font: 18px/1 var(--mono);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+}
+.session-row:hover .session-del, .session-del:focus-visible { opacity: 1; }
+.session-del:hover { color: var(--stamp); border-color: var(--stamp); }
+
 .session {
   width: 100%;
   text-align: left;
@@ -128,7 +146,7 @@ aside {
   border: 0;
   border-bottom: 1px solid var(--edge);
   border-left: 3px solid transparent;
-  padding: 10px 10px 10px 12px;
+  padding: 10px 40px 10px 12px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }

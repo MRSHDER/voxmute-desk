@@ -355,6 +355,18 @@ function drawTrace(canvas: HTMLCanvasElement, seedN: number) {
   ctx.stroke();
 }
 
+/** 删除一条记录（侧栏的 × 和“档案”里的按钮共用）。熟悉度和备忘不受影响。 */
+function removeSession(id: string) {
+  const s = sessions.find((x) => x.id === id);
+  if (!s) return;
+  if (!confirm(`删除记录「${s.title}」？这条记录的聊天会一起删掉，不能撤销。（他对你的熟悉度和备忘不受影响）`)) return;
+  sessions = sessions.filter((x) => x.id !== id);
+  if (!sessions.length) sessions = seed();
+  if (!sessions.some((x) => x.id === current)) current = sessions[0].id;
+  save();
+  render();
+}
+
 function render() {
   const s = active();
   app.innerHTML = `
@@ -367,10 +379,13 @@ function render() {
         ${sessions
           .map(
             (item) => `
-          <button class="session ${item.id === s.id ? "active" : ""}" data-open="${item.id}">
-            <b>${item.title}</b>
-            <span>${item.bay}</span>
-          </button>`,
+          <div class="session-row">
+            <button class="session ${item.id === s.id ? "active" : ""}" data-open="${item.id}">
+              <b>${item.title}</b>
+              <span>${item.bay}</span>
+            </button>
+            <button class="session-del" type="button" data-del="${item.id}" title="删除这条记录" aria-label="删除记录 ${item.title}">×</button>
+          </div>`,
           )
           .join("")}
       </div>
@@ -427,6 +442,13 @@ function render() {
       </form>
     </main>
   `;
+
+  app.querySelectorAll<HTMLButtonElement>("[data-del]").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      removeSession(btn.dataset.del!);
+    };
+  });
 
   app.querySelectorAll<HTMLButtonElement>("[data-open]").forEach((btn) => {
     btn.onclick = () => {
@@ -566,14 +588,8 @@ files.querySelector<HTMLButtonElement>("#log-export")!.onclick = () => {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
 files.querySelector<HTMLButtonElement>("#log-delete")!.onclick = () => {
-  const s = active();
-  if (!confirm(`删除记录「${s.title}」？这条记录的聊天会一起删掉，不能撤销。（他对你的熟悉度和备忘不受影响）`)) return;
-  sessions = sessions.filter((x) => x.id !== s.id);
-  if (!sessions.length) sessions = seed();
-  current = sessions[0].id;
-  save();
   files.close();
-  render();
+  removeSession(active().id);
 };
 files.querySelector<HTMLButtonElement>("#all-reset")!.onclick = () => {
   if (!confirm("清空全部？所有记录、他的备忘、他对你的熟悉度都会归零，序章也会重新开始。不能撤销。")) return;
