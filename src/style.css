@@ -436,3 +436,160 @@ dialog#files::backdrop { background: rgba(10, 11, 12, 0.55); }
 .files-row button:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .files-row button.danger { border-color: var(--stamp); color: var(--stamp); }
 .files-row button.danger:hover { background: var(--stamp); color: #fff; border-color: var(--stamp); }
+
+/* ---------- 序章（文游） ---------- */
+#app[hidden] { display: none; }
+html.in-game #bgwave { display: none; }
+
+#game {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow: auto;
+  padding: 0 0 8vh;
+  background: radial-gradient(120% 80% at 50% 0%, var(--glow) 0%, transparent 60%), var(--paper);
+  color: var(--ink);
+}
+.g-top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 14px 16px;
+  font: 11px/1.4 var(--mono);
+  letter-spacing: 0.14em;
+  color: var(--ink-soft);
+}
+.g-top i, .g-choices i, .g-cover h1 span, .g-name i { font-style: normal; }
+.g-skip {
+  background: transparent;
+  border: 1px solid var(--ink-soft);
+  color: var(--ink-soft);
+  font: 11px var(--mono);
+  letter-spacing: 0.1em;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+.g-skip:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+.g-sheet {
+  width: min(680px, calc(100vw - 32px));
+  margin: 2vh auto 0;
+  padding: 40px 44px 44px;
+  background: var(--sheet);
+  border: 1px solid var(--edge);
+  box-shadow: 0 1px 0 var(--hi) inset, 0 30px 60px -40px var(--drop);
+}
+.g-title {
+  font: 12px/1.4 var(--mono);
+  letter-spacing: 0.16em;
+  color: var(--ink-soft);
+  padding-bottom: 10px;
+  margin-bottom: 22px;
+  border-bottom: 2px solid var(--rule);
+}
+.g-p { margin: 0 0 14px; font-size: 17px; line-height: 1.95; opacity: 0; animation: g-rise 0.7s ease-out forwards; }
+.g-quote {
+  font: 14px/1.8 var(--mono);
+  letter-spacing: 0.02em;
+  padding: 2px 0 2px 14px;
+  margin-bottom: 6px;
+  border-left: 3px solid var(--star);
+  color: var(--ink);
+}
+@keyframes g-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.g-choices { display: flex; flex-direction: column; gap: 8px; margin-top: 26px; opacity: 0; animation: g-rise 0.6s ease-out forwards; }
+.g-choices button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid var(--ink-soft);
+  color: var(--ink);
+  padding: 11px 14px;
+  font-size: 16px;
+  line-height: 1.6;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
+}
+.g-choices button b { font: 700 12px var(--mono); margin-right: 10px; color: var(--ink-soft); }
+.g-choices button i { font: 11px var(--mono); letter-spacing: 0.1em; margin-left: 6px; opacity: 0.75; }
+.g-choices button:hover, .g-choices button:focus-visible { background: var(--ink); color: var(--paper); border-color: var(--ink); transform: translateX(3px); }
+.g-choices button:hover b, .g-choices button:focus-visible b { color: var(--signal); }
+.g-choices.show { opacity: 1; animation: none; }
+
+/* 封面 */
+.g-cover { padding-top: 48px; }
+.g-kicker { font: 11px/1.4 var(--mono); letter-spacing: 0.16em; color: var(--ink-soft); }
+.g-cover h1 { margin: 12px 0 22px; font-size: 38px; letter-spacing: 0.14em; border-bottom: 2px solid var(--rule); padding-bottom: 14px; }
+.g-cover h1 span { display: block; margin-top: 6px; font: 600 12px var(--mono); letter-spacing: 0.34em; color: var(--ink-soft); }
+.g-cover .g-p { opacity: 1; animation: none; }
+.g-hint { font: 12px/1.7 var(--mono); color: var(--ink-soft); margin-bottom: 22px; }
+.g-name { display: block; font-weight: 700; letter-spacing: 0.08em; }
+.g-name i { font: 11px var(--mono); color: var(--ink-soft); margin-left: 6px; }
+.g-name input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  background: var(--card);
+  border: 1px solid var(--ink-soft);
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+}
+.g-name input:focus { border-color: var(--star); box-shadow: 0 0 0 1px var(--star); }
+
+/* 结局 */
+.g-ending { padding-top: 34px; }
+.g-stamp {
+  display: inline-block;
+  margin: 0 0 22px;
+  padding: 6px 14px;
+  font: 700 15px/1.4 var(--serif);
+  letter-spacing: 0.18em;
+  color: var(--stamp);
+  border: 2px solid var(--stamp);
+  outline: 1px solid var(--stamp);
+  outline-offset: 3px;
+  transform: rotate(-1.5deg);
+}
+
+/* 点一下全部显示 */
+#game.instant .g-p, #game.instant .g-choices { animation-duration: 0s; animation-delay: 0s !important; }
+
+/* 开机过场 */
+#boot {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #050606;
+  color: #d6ff3a;
+  font: 14px/2 var(--mono);
+  letter-spacing: 0.12em;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 max(24px, 12vw);
+  cursor: pointer;
+  transition: opacity 0.45s;
+}
+#boot.out { opacity: 0; pointer-events: none; }
+#boot p { margin: 0; animation: g-rise 0.3s ease-out; }
+#boot p:last-child::after { content: " █"; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+@media (max-width: 600px) {
+  .g-sheet { padding: 28px 20px 30px; }
+  .g-cover h1 { font-size: 30px; }
+  .g-p { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .g-p, .g-choices { opacity: 1; animation: none; }
+  #boot p { animation: none; }
+}

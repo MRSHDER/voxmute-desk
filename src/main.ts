@@ -1,5 +1,7 @@
 import "./style.css";
 import { initEffects, pulse, reveal, setDecoding } from "./effects";
+import { bootTransition, mountGame, type Saved } from "./game/engine";
+import { DEFAULT_RESULT, finishGame, story, type GameResult } from "./game/story";
 
 type Role = "user" | "subject" | "system";
 
@@ -529,7 +531,10 @@ files.innerHTML = `
       <button type="button" id="log-export">导出当前记录 <span lang="en">.txt</span></button>
       <button type="button" id="log-delete">删除当前记录</button>
     </div>
-    <div class="files-row"><button type="button" id="all-reset" class="danger">清空全部，重新开始</button></div>
+    <div class="files-row">
+      <button type="button" id="game-replay">重玩序章 <span lang="en">REPLAY PROLOGUE</span></button>
+      <button type="button" id="all-reset" class="danger">清空全部，重新开始</button>
+    </div>
     <div class="files-row end"><button value="close">关闭 <span lang="en">CLOSE</span></button></div>
   </form>`;
 document.body.append(files);
@@ -572,7 +577,7 @@ files.querySelector<HTMLButtonElement>("#log-delete")!.onclick = () => {
   render();
 };
 files.querySelector<HTMLButtonElement>("#all-reset")!.onclick = () => {
-  if (!confirm("清空全部？所有记录、他的备忘、他对你的熟悉度都会归零，从头开始。不能撤销。")) return;
+  if (!confirm("清空全部？所有记录、他的备忘、他对你的熟悉度都会归零，序章也会重新开始。不能撤销。")) return;
   sessions = seed();
   current = sessions[0].id;
   notes = "";
@@ -582,7 +587,13 @@ files.querySelector<HTMLButtonElement>("#all-reset")!.onclick = () => {
   store(SCORE_KEY, "0");
   memoField.value = "";
   files.close();
-  render();
+  game = { scene: "", flags: {}, name: "", done: false };
+  store(GAME_KEY, JSON.stringify(game));
+  playGame(false);
+};
+files.querySelector<HTMLButtonElement>("#game-replay")!.onclick = () => {
+  files.close();
+  playGame(true);
 };
 files.addEventListener("click", (e) => {
   if (e.target === files) files.close(); // 点遮罩关闭
@@ -593,5 +604,75 @@ function openFiles() {
   files.showModal();
 }
 
+/* ---------- 序章（文游）：玩完才进终端 ----------
+   选择会换算成终端的起点：熟悉度、备忘、折声的第一句话（见 game/story.ts 的 finishGame）。
+   序章上线前就用过终端的老访客直接进终端；随时可以“跳过序章”，或在“档案”里重玩。 */
+const GAME_KEY = "voxmute-desk-game-v1";
+function loadGame(): Saved | null {
+  const raw = recall(GAME_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as Saved;
+  } catch {
+    return null;
+  }
+}
+let game = loadGame();
+if (!game && recall(KEY) !== null) {
+  game = { scene: "", flags: {}, name: "", done: true };
+  store(GAME_KEY, JSON.stringify(game));
+}
+let stopGame: (() => void) | null = null;
+
+function applyResult(r: GameResult) {
+  sessions = seed();
+  sessions[0].messages = [system("CHANNEL OPEN. SUBJECT DOES NOT SPEAK."), ...r.opener.map(subject)];
+  current = sessions[0].id;
+  notes = r.notes;
+  score = r.score;
+  save();
+  store(NOTES_KEY, notes);
+  store(SCORE_KEY, String(score));
+}
+
+function enterDesk() {
+  app.hidden = false;
+  render();
+}
+
+function playGame(replay: boolean) {
+  stopGame?.();
+  app.hidden = true;
+  stopGame = mountGame({
+    story,
+    saved: replay ? null : game,
+    replay,
+    onSave: (s) => {
+      if (replay) return; // 重玩的进度不覆盖真正的存档
+      game = s;
+      store(GAME_KEY, JSON.stringify(s));
+    },
+    onExit: (how, s) => {
+      stopGame?.();
+      stopGame = null;
+      if (how === "keep") return enterDesk();
+      if (how === "skip") {
+        game = { scene: "", flags: {}, name: "", done: true };
+        store(GAME_KEY, JSON.stringify(game));
+        applyResult(DEFAULT_RESULT);
+        return enterDesk();
+      }
+      // enter / apply：把结局写进终端，再开机
+      applyResult(finishGame(s.flags, s.name));
+      game = { ...(replay ? (game ?? s) : s), done: true };
+      store(GAME_KEY, JSON.stringify(game));
+      const boot = bootTransition(["TXC / BIO-SIGNAL DIV.", `OPERATOR: ${s.name || "新人"}`, "CAM-14 / RESIDUAL", "CHANNEL OPEN. SUBJECT DOES NOT SPEAK."]);
+      enterDesk();
+      void boot;
+    },
+  });
+}
+
 initEffects();
-render();
+if (game?.done) enterDesk();
+else playGame(false);
