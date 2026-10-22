@@ -126,6 +126,19 @@ function active() {
   return sessions.find((s) => s.id === current) ?? sessions[0];
 }
 
+/* ---------- 熟悉度 ----------
+   聊得越多，折声透露得越多。按操作员发过的消息总数算（所有记录合计，新建记录不会清零），
+   聊到他在意的东西（曲奇、小动物）额外加分。0 陌生 · 1 开始习惯 · 2 熟悉 · 3 信任。
+   代理按这个等级决定他肯讲多少过去。 */
+const LIKES = /饼干|曲奇|cookie|猫|狗|小动物|宠物/i;
+function rapportOf(all: Session[]): number {
+  let score = 0;
+  for (const s of all)
+    for (const m of s.messages)
+      if (m.role === "user") score += 1 + (LIKES.test(m.text) ? 2 : 0);
+  return score >= 25 ? 3 : score >= 12 ? 2 : score >= 5 ? 1 : 0;
+}
+
 function replyTo(input: string): string[] {
   const q = input.toLowerCase();
   if (/名字|是谁|你是|who|vox|折声/.test(q)) {
@@ -138,10 +151,19 @@ function replyTo(input: string): string[] {
     return ["……你带了？\n别误会，我只是想知道你有没有诚意。"];
   }
   if (/猫|狗|小动物|宠物/.test(q)) {
-    return ["它们比人安静，也比人诚实。\n你养过吗？"];
+    return rapportOf(sessions) >= 2
+      ? ["病院后院以前有只瘸腿的猫。我每天留一半饭，隔着铁丝网递给它。\n后来它不见了。……别问了。"]
+      : ["它们比人安静，也比人诚实。\n你养过吗？"];
   }
   if (/上一[个任位]|前任|失联|失踪/.test(q)) {
-    return ["他走得很急，饼干都没吃完。\n问我之前，先想想你为什么坐在这把椅子上。"];
+    return rapportOf(sessions) >= 2
+      ? ["他和你不一样，他会半夜把灯关掉。\n别的，我现在还不想说。"]
+      : ["我们认识吗？\n这种事，等你坐满几个班再问。"];
+  }
+  if (/过去|以前|经历|怎么进来|为什么在这|声带|怎么没的|医院|病院/.test(q)) {
+    return rapportOf(sessions) >= 2
+      ? ["病院里待了很多年。他们说我是稳定的病例，因为我从不吵闹。\n其实我只是在记他们换班的时间。"]
+      : ["你这个问法，像在填表。\n我们还没熟到那一步。"];
   }
   if (/怕|害怕|恐惧/.test(q)) {
     return ["灯一直亮着，一直有人盯着，我早习惯了。\n倒是你，手心出汗了吧。"];
@@ -200,6 +222,7 @@ async function fetchReply(history: Msg[]): Promise<Decoded> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         messages: history.slice(-12).map(({ role, text }) => ({ role, text: text.slice(0, 600) })),
+        rapport: rapportOf(sessions),
       }),
     });
     if (res.status === 429) return localDecode(lastText, "[载波饱和·本地推测]");
