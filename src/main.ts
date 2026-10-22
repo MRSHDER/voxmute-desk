@@ -79,6 +79,40 @@ function load(): Session[] {
   }
 }
 
+/* ---------- 日 / 夜 ---------- */
+const THEME_KEY = "voxmute-desk-theme";
+type Theme = "light" | "dark";
+const systemDark = matchMedia("(prefers-color-scheme: dark)");
+function storedTheme(): Theme | null {
+  try {
+    const t = localStorage.getItem(THEME_KEY);
+    return t === "light" || t === "dark" ? t : null;
+  } catch {
+    return null;
+  }
+}
+let theme: Theme = storedTheme() ?? (systemDark.matches ? "dark" : "light");
+function applyTheme() {
+  document.documentElement.dataset.theme = theme;
+  document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#0b0c0d" : "#d9dbd4");
+}
+applyTheme();
+function syncThemeToggle() {
+  const btn = document.querySelector<HTMLButtonElement>("#theme-toggle");
+  if (!btn) return;
+  const dark = theme === "dark";
+  btn.setAttribute("aria-pressed", String(dark));
+  btn.setAttribute("aria-label", dark ? "切换到日间 Switch to day" : "切换到夜间 Switch to night");
+  btn.innerHTML = `<span>${dark ? "日间" : "夜间"}</span>${dark ? "DAY" : "NIGHT"}`;
+}
+// 没手动选过时，跟随系统
+systemDark.addEventListener?.("change", (e) => {
+  if (storedTheme()) return;
+  theme = e.matches ? "dark" : "light";
+  applyTheme();
+  syncThemeToggle();
+});
+
 let sessions = load();
 let current = sessions[0].id;
 
@@ -255,6 +289,7 @@ function render() {
           <span class="flag warn"><span>无声</span>VOICE NULL</span>
           <span class="flag on"><span>载波</span>CARRIER ON</span>
           <span class="flag ${API ? "on" : ""}"><span>${API ? "链路" : "离线"}</span>${API ? "LINK ON" : "LOCAL ONLY"}</span>
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-pressed="${theme === "dark"}" aria-label="${theme === "dark" ? "切换到日间 Switch to day" : "切换到夜间 Switch to night"}"><span>${theme === "dark" ? "日间" : "夜间"}</span>${theme === "dark" ? "DAY" : "NIGHT"}</button>
         </div>
       </header>
       <div id="log">
@@ -311,6 +346,13 @@ function render() {
     current = next.id;
     save();
     render();
+  };
+
+  app.querySelector<HTMLButtonElement>("#theme-toggle")!.onclick = () => {
+    theme = theme === "dark" ? "light" : "dark";
+    try { localStorage.setItem(THEME_KEY, theme); } catch { /* 忽略 */ }
+    applyTheme();
+    syncThemeToggle(); // 原地更新，不重绘，输入框里没发的字还在
   };
 
   const form = app.querySelector<HTMLFormElement>("#composer")!;
