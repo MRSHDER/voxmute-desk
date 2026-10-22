@@ -1,5 +1,5 @@
 // 序章里的简单道具：纯线稿 SVG，颜色全走样式变量（日夜两套都适用）。
-// 类名：l 墨线 · m 淡线 · a 钴蓝线 · f 纸色填充+墨边 · k 墨色实心 · d 边牧的深色毛（日夜都保持深色，夜间加浅描边） · s 信号色 · r 印章红 · scr 监视器 · sl 屏上信号线
+// 类名：l 墨线 · m 淡线 · a 钴蓝线 · f 纸色填充+墨边 · k 墨色实心 · s 信号色 · r 印章红 · scr 监视器 · sl 屏上信号线
 const svg = (body: string) => `<svg viewBox="0 0 240 120" role="img" aria-hidden="true" focusable="false">${body}</svg>`;
 
 export const ART: Record<string, string> = {
@@ -95,13 +95,11 @@ export const ART: Record<string, string> = {
   window: svg(`
     <path class="m" d="M16 112H224"/>
     <rect class="f" x="40" y="8" width="160" height="86"/>
-    <path class="m" d="M48 78H192M60 20L82 20M56 28L72 28"/>
-    <path class="d" d="M110 32L105 16L118 26ZM130 32L135 16L122 26Z"/>
-    <circle class="d" cx="120" cy="40" r="12"/>
-    <ellipse class="d" cx="120" cy="64" rx="17" ry="19"/>
-    <circle fill="var(--star)" cx="108" cy="22" r="2.2"/>
-    <path class="l" style="stroke-width:6" d="M134 74C150 78 156 72 160 66"/>
-    <circle class="f" cx="160" cy="65" r="3.6"/>
+    <path class="m" d="M48 78H192M60 22L84 22M56 30L74 30"/>
+    <path class="l" d="M120 8V22"/>
+    <path class="f" d="M106 22H134L142 34H98Z"/>
+    <circle class="s" cx="120" cy="38" r="3.6"/>
+    <path class="m" d="M104 46L90 74M120 48V74M136 46L150 74"/>
     <rect class="f" x="102" y="94" width="36" height="14"/>`),
 
   hatch: svg(`

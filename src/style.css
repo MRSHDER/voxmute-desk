@@ -609,7 +609,6 @@ dialog#files::backdrop { background: rgba(10, 11, 12, 0.55); }
 .g-art .a { fill: none; stroke: var(--star); stroke-width: 2; }
 .g-art .f { fill: var(--card); stroke: var(--ink); stroke-width: 2; }
 .g-art .k { fill: var(--ink); stroke: var(--ink); stroke-width: 1; stroke-linejoin: round; }
-.g-art .d { fill: #16181c; stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; }
 .g-art .s { fill: var(--signal); }
 .g-art .r { fill: var(--stamp); }
 .g-art .scr { fill: var(--screen); stroke: var(--ink); stroke-width: 2; }
