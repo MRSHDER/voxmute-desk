@@ -353,19 +353,7 @@ button.send:disabled { opacity: 0.55; cursor: wait; }
 @keyframes wave { 0%, 100% { height: 3px; } 50% { height: 14px; } }
 
 /* ---------- 特效 ---------- */
-/* 背景震动波：墨色细线，叠在纸上 */
-#bgwave {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 2;
-  pointer-events: none;
-  mix-blend-mode: multiply;
-}
-
-/* 夜间：墨色细线反相成浅色，混合方式改为 screen；颗粒几乎不可见 */
-:root[data-theme="dark"] #bgwave { filter: invert(1); mix-blend-mode: screen; }
+/* 夜间：混合方式改为 screen，颗粒几乎不可见 */
 :root[data-theme="dark"] .crt { mix-blend-mode: screen; opacity: 0.05; }
 
 /* 纸张颗粒：极淡的噪点 */
@@ -439,7 +427,6 @@ dialog#files::backdrop { background: rgba(10, 11, 12, 0.55); }
 
 /* ---------- 序章（文游） ---------- */
 #app[hidden] { display: none; }
-html.in-game #bgwave { display: none; }
 
 #game {
   position: fixed;

@@ -1,5 +1,5 @@
 import "./style.css";
-import { initEffects, pulse, reveal, setDecoding } from "./effects";
+import { initEffects, reveal } from "./effects";
 import { agoText, bootTransition, dayPart, mountGame, type Saved } from "./game/engine";
 import { DEFAULT_RESULT, finishGame, story, type GameResult } from "./game/story";
 
@@ -476,7 +476,6 @@ function render() {
     store(SCORE_KEY, String(score));
     store(SEEN_KEY, String(Date.now()));
     pending = box.id;
-    setDecoding(true);
     save();
     render();
     try {
@@ -484,11 +483,8 @@ function render() {
       const msg = subjectDecoded(d);
       box.messages.push(msg);
       if (current === box.id) freshId = msg.id;
-      setDecoding(false);
-      pulse(d, isFlat(d));
       void updateMemo(box);
     } finally {
-      setDecoding(false);
       pending = null;
       save();
       render();
